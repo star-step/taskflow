@@ -25,3 +25,4 @@ appsettings.*.local.json
 .idea/
 .vscode/*
 !.vscode/extensions.json
+*.tsbuildinfo
