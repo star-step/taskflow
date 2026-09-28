@@ -1,0 +1,11 @@
+.stop { display: inline-flex; }
+.pill.pill {
+  height: 28px; padding: 0 8px 0 9px; border-radius: 999px; font-size: 13px; font-weight: 600; gap: 6px;
+}
+.lg.lg { height: 36px; font-size: 13.5px; padding: 0 10px 0 11px; }
+.chev { opacity: 0.7; }
+.icon { display: inline-flex; }
+.todo.todo { background: var(--todo-soft); color: var(--todo); border-color: var(--todo-line); }
+.prog.prog { background: var(--prog-soft); color: var(--prog); border-color: var(--prog-line); }
+.done.done { background: var(--done-soft); color: var(--done); border-color: var(--done-line); }
+.todo .value, .prog .value, .done .value { color: inherit; }

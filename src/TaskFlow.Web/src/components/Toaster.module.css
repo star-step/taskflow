@@ -1,0 +1,19 @@
+.region {
+  position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+  display: grid; gap: 8px; z-index: 100; width: max-content; max-width: calc(100% - 32px); pointer-events: none;
+}
+.toast {
+  pointer-events: auto; display: flex; align-items: center; gap: 10px;
+  background: var(--ink); color: #fff; padding: 10px 8px 10px 14px; border-radius: 10px;
+  box-shadow: var(--pop); font-size: 13.5px; animation: in 160ms ease-out;
+}
+.message { flex: 1; }
+.errorIcon { display: inline-flex; color: #FF9097; }
+.okIcon { display: inline-flex; color: #7FD7A6; }
+.action { background: none; border: 0; color: #A9C0FF; font-weight: 600; padding: 4px 6px; border-radius: 6px; }
+.close { background: none; border: 0; color: #9AA6B6; padding: 4px; display: inline-flex; border-radius: 6px; }
+.action:hover, .close:hover { background: rgba(255, 255, 255, 0.08); }
+@keyframes in { from { transform: translateY(8px); opacity: 0; } }
+@media (max-width: 767px) {
+  .region { left: 16px; right: 16px; transform: none; width: auto; bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
+}

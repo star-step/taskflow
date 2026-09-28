@@ -1,0 +1,37 @@
+/* Design tokens. Values match docs/mockups/index.html. */
+:root {
+  --bg: #F4F6F9;
+  --surface: #FFFFFF;
+  --sunken: #EBEFF4;
+  --subtle: #FAFBFC;
+  --line: #E1E6ED;
+  --line-2: #CBD3DD;
+  --ink: #17212B;
+  --ink-2: #3A4654;
+  --muted: #5F6B7A;
+  --placeholder: #8B96A4;
+
+  --brand: #1F4FD8;
+  --brand-hover: #1A43B8;
+  --brand-soft: #E8EEFD;
+
+  --crit: #C8303B;  --crit-soft: #FCEBEC;
+  --high: #C2570F;  --high-soft: #FDF0E5;
+  --med:  #8F6A06;  --med-soft:  #FBF3DC;
+  --low:  #56667B;  --low-soft:  #EEF1F5;
+
+  --todo: #3A4654;  --todo-soft: #F1F3F6;  --todo-line: #D6DCE4;
+  --prog: #1F4FD8;  --prog-soft: #E8EEFD;  --prog-line: #C9D6FA;
+  --done: #1B7A4B;  --done-soft: #E3F2E9;  --done-line: #BFE0CC;
+
+  --danger: #C8303B;
+  --scrim: rgba(15, 23, 32, 0.45);
+
+  --r: 8px;
+  --r-lg: 12px;
+  --pop: 0 16px 40px -12px rgba(16, 24, 40, 0.35), 0 2px 6px rgba(16, 24, 40, 0.08);
+  --font: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  color-scheme: light;
+}
