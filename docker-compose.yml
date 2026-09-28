@@ -1,0 +1,65 @@
+# TaskFlow: SQL Server + .NET API + React/nginx.
+#   cp .env.example .env && docker compose up --build   →   http://localhost:8080
+name: taskflow
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64 # no ARM image; runs under Rosetta/QEMU on Apple Silicon
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:?Set SA_PASSWORD in .env}
+      MSSQL_PID: Developer
+    volumes:
+      - mssql-data:/var/opt/mssql
+    ports:
+      - "127.0.0.1:1433:1433" # local tools only (SSMS, Azure Data Studio, dotnet run)
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' -b -o /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  api:
+    build:
+      context: .
+      dockerfile: src/TaskFlow.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__TaskFlow: "Server=db,1433;Database=TaskFlow;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=True"
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env}
+      Auth__AllowedEmailDomains__0: ${ALLOWED_EMAIL_DOMAIN:-company.com}
+      Auth__CookieSecure: ${COOKIE_SECURE:-false}
+      Database__MigrateOnStartup: "true"
+      Seed__DemoUsers: "true"
+      Seed__Users__0__Email: ${DEMO_USER_1_EMAIL:-}
+      Seed__Users__0__DisplayName: ${DEMO_USER_1_NAME:-}
+      Seed__Users__0__Password: ${DEMO_USER_1_PASSWORD:-}
+      Seed__Users__1__Email: ${DEMO_USER_2_EMAIL:-}
+      Seed__Users__1__DisplayName: ${DEMO_USER_2_NAME:-}
+      Seed__Users__1__Password: ${DEMO_USER_2_PASSWORD:-}
+      Swagger__Enabled: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf \"GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3 && grep -q \"200 OK\" <&3'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: src/TaskFlow.Web
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mssql-data:
