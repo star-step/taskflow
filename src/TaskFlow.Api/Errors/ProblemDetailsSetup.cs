@@ -26,7 +26,8 @@ public static class ProblemDetailsSetup
         });
         services.AddExceptionHandler<GlobalExceptionHandler>();
 
-        services.Configure<ApiBehaviorOptions>(o => o.InvalidModelStateResponseFactory = ValidationResponse);
+        // PostConfigure: AddControllers() registers MVC's own factory, which would otherwise replace ours.
+        services.PostConfigure<ApiBehaviorOptions>(o => o.InvalidModelStateResponseFactory = ValidationResponse);
         return services;
     }
 

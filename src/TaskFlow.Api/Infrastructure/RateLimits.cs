@@ -13,13 +13,22 @@ public static class RateLimits
     public const string Register = "register";
     public const string Refresh = "refresh";
 
-    public static IServiceCollection AddTaskFlowRateLimiting(this IServiceCollection services)
+    /// <summary>Permits per window, overridable under "RateLimits" in configuration.</summary>
+    public sealed class Settings
     {
+        public int LoginPerMinute { get; set; } = 10;
+        public int RegisterPerTenMinutes { get; set; } = 5;
+        public int RefreshPerMinute { get; set; } = 30;
+    }
+
+    public static IServiceCollection AddTaskFlowRateLimiting(this IServiceCollection services, IConfiguration config)
+    {
+        var limits = config.GetSection("RateLimits").Get<Settings>() ?? new Settings();
         services.AddRateLimiter(options =>
         {
-            AddPerIp(options, Login, permits: 10, window: TimeSpan.FromMinutes(1));
-            AddPerIp(options, Register, permits: 5, window: TimeSpan.FromMinutes(10));
-            AddPerIp(options, Refresh, permits: 30, window: TimeSpan.FromMinutes(1));
+            AddPerIp(options, Login, limits.LoginPerMinute, TimeSpan.FromMinutes(1));
+            AddPerIp(options, Register, limits.RegisterPerTenMinutes, TimeSpan.FromMinutes(10));
+            AddPerIp(options, Refresh, limits.RefreshPerMinute, TimeSpan.FromMinutes(1));
 
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = async (ctx, ct) =>

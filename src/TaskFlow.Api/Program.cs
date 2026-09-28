@@ -14,7 +14,7 @@ builder.Services.Configure<SeedOptions>(config.GetSection(SeedOptions.Section));
 builder.Services.AddTaskFlowDatabase(config);
 builder.Services.AddTaskFlowIdentity(config);
 builder.Services.AddTaskFlowAuthentication();
-builder.Services.AddTaskFlowRateLimiting();
+builder.Services.AddTaskFlowRateLimiting(config);
 builder.Services.AddTaskFlowProblemDetails();
 builder.Services.AddTaskFlowSwagger();
 

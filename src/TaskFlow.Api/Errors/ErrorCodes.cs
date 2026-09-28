@@ -18,6 +18,9 @@ public static class ErrorCodes
     public const string EmailDomainNotAllowed = "EMAIL_DOMAIN_NOT_ALLOWED";
     public const string InvalidRefreshToken = "INVALID_REFRESH_TOKEN";
     public const string ClientHeaderMissing = "CLIENT_HEADER_MISSING";
+    public const string MethodNotAllowed = "METHOD_NOT_ALLOWED";
+    public const string UnsupportedMediaType = "UNSUPPORTED_MEDIA_TYPE";
+    public const string BadRequest = "BAD_REQUEST";
 
     public static string ForStatus(int status) => status switch
     {
@@ -25,9 +28,12 @@ public static class ErrorCodes
         StatusCodes.Status401Unauthorized => Unauthenticated,
         StatusCodes.Status403Forbidden => Forbidden,
         StatusCodes.Status404NotFound => NotFound,
+        StatusCodes.Status405MethodNotAllowed => MethodNotAllowed,
+        StatusCodes.Status415UnsupportedMediaType => UnsupportedMediaType,
         StatusCodes.Status409Conflict => ConcurrencyConflict,
         StatusCodes.Status429TooManyRequests => RateLimited,
         StatusCodes.Status503ServiceUnavailable => DatabaseUnavailable,
+        >= 400 and < 500 => BadRequest,
         _ => Unexpected
     };
 }
