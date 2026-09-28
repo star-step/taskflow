@@ -86,7 +86,7 @@ button.stat[aria-pressed="true"] { box-shadow: inset 0 -2px 0 var(--brand); }
 .radioList input { accent-color: var(--brand); width: 18px; height: 18px; margin: 0; }
 
 /* ---------- table ---------- */
-.tableWrap { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+.tableWrap { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow-x: auto; overflow-y: hidden; }
 .table { width: 100%; border-collapse: collapse; }
 .table th {
   font-size: 12px; font-weight: 600; color: var(--muted); text-align: left; padding: 10px 12px;
@@ -106,7 +106,11 @@ button.stat[aria-pressed="true"] { box-shadow: inset 0 -2px 0 var(--brand); }
   font-size: inherit; line-height: 1.35;
 }
 .titleBtn:hover { color: var(--brand); }
-.desc { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 440px; margin-top: 1px; }
+/* The task column takes the leftover width (width:100% + max-width:0), so a long description
+   truncates instead of pushing the other columns out of the table. */
+.titleCell { width: 100%; max-width: 0; min-width: 200px; }
+.desc { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
+.table td:not(.titleCell) { white-space: nowrap; }
 .skelRow { display: flex; gap: 24px; align-items: center; padding: 16px 18px; border-bottom: 1px solid var(--line); }
 .skelRow .skel { height: 14px; }
 
@@ -221,6 +225,7 @@ button.stat[aria-pressed="true"] { box-shadow: inset 0 -2px 0 var(--brand); }
   .statPrio { min-width: 230px; }
   .statValue { font-size: 20px; }
   .inlineSearch { display: flex; }
+  .filtersCompact > .spacer { display: none; } /* the search box takes the free space instead */
   .tableWrap { display: none; }
   .tableWrap[aria-busy="true"] { display: block; }
   .cards { display: grid; }

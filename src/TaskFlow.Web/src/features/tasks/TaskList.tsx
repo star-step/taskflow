@@ -51,7 +51,7 @@ export function TaskList({ tasks, selectedId, onOpen, onStatus, onDelete }: Prop
               <tr key={t.id} className={`${t.priority === 'Critical' ? styles.isCrit : ''} ${t.id === selectedId ? styles.isSelected : ''}`}
                 onClick={() => onOpen(t)}>
                 <td className={styles.colId}><span className={styles.id}>#{t.id}</span></td>
-                <td>
+                <td className={styles.titleCell}>
                   <button type="button" className={styles.titleBtn} onClick={(e) => { e.stopPropagation(); onOpen(t); }}>{t.title}</button>
                   {t.description && <div className={styles.desc}>{t.description}</div>}
                 </td>

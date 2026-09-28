@@ -8,6 +8,7 @@
   font-size: 13.5px; font-weight: 500; color: var(--ink); cursor: pointer; outline: 0; user-select: none;
 }
 .item[data-highlighted] { background: var(--sunken); }
+.item:focus-visible { outline: 0; }
 .danger { color: var(--danger); }
 .danger[data-highlighted] { background: var(--crit-soft); }
 @keyframes pop { from { opacity: 0; transform: translateY(-4px); } }

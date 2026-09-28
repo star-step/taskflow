@@ -40,7 +40,7 @@ describe('api client', () => {
       errors: { title: ['Title is required.'] },
     }));
 
-    const error = await api('/tasks', { method: 'POST', json: {} }).catch((e) => e);
+    const error = (await api('/tasks', { method: 'POST', json: {} }).catch((e: unknown) => e)) as ApiError;
     expect(error).toBeInstanceOf(ApiError);
     expect(error.fieldError('title')).toBe('Title is required.');
   });

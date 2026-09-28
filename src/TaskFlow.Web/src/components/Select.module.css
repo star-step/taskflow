@@ -24,7 +24,7 @@
   white-space: nowrap; text-align: left; user-select: none;
 }
 .option[data-highlighted], .option:hover { background: var(--sunken); }
-.option:focus-visible { box-shadow: inset 0 0 0 2px var(--brand); }
+.option:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--brand); }
 .option[data-state="checked"] { font-weight: 600; }
 .check { margin-left: auto; padding-left: 12px; color: var(--brand); display: inline-flex; }
 

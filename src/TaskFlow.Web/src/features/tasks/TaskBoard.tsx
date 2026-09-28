@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
-  DndContext, DragOverlay, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors,
-  type Announcements, type DragEndEvent, type KeyboardCoordinateGetter,
+  DndContext, DragOverlay, KeyboardSensor, PointerSensor, pointerWithin, rectIntersection, useDraggable, useDroppable,
+  useSensor, useSensors, type Announcements, type CollisionDetection, type DragEndEvent, type KeyboardCoordinateGetter,
 } from '@dnd-kit/core';
 import { STATUSES, STATUS_LABEL, type Task, type TaskStatus } from '../../api/types';
 import { Avatar, PriorityBadge, StatusIcon, statusTextClass } from '../../components/Badges';
@@ -21,6 +21,12 @@ const columnCoordinates: KeyboardCoordinateGetter = (event, { context: { droppab
   const current = columns.findIndex((r) => centre >= r.left && centre <= r.left + r.width);
   const target = columns[Math.min(columns.length - 1, Math.max(0, current + (event.code === 'ArrowRight' ? 1 : -1)))];
   return target ? { x: target.left + 12, y: target.top + 48 } : undefined;
+};
+
+/** The column under the pointer wins; keyboard drags (no pointer) fall back to the card's rectangle. */
+const columnUnderPointer: CollisionDetection = (args) => {
+  const hits = pointerWithin(args);
+  return hits.length > 0 ? hits : rectIntersection(args);
 };
 
 function title(tasks: Task[], id: string | number) {
@@ -66,7 +72,7 @@ export function TaskBoard({ tasks, onOpen, onStatus }: { tasks: Task[]; onOpen(t
           ))}
         </div>
       </div>
-      <DndContext sensors={sensors} accessibility={{ announcements }}
+      <DndContext sensors={sensors} collisionDetection={columnUnderPointer} accessibility={{ announcements }}
         onDragStart={({ active: a }) => setActiveId(Number(a.id))} onDragEnd={onDragEnd} onDragCancel={() => setActiveId(null)}>
         <div className={styles.board}>
           {STATUSES.map((s) => (
