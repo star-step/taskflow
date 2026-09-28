@@ -59,7 +59,7 @@ Demo accounts for local development are in `src/TaskFlow.Api/appsettings.Develop
 dotnet test --filter "Category!=Integration"
 ```
 
-Raw-SQL summary against a real SQL Server in a throwaway container (needs Docker; skipped if unavailable):
+Raw-SQL summary against a real SQL Server in a throwaway container (needs Docker; skipped if unavailable). With Colima, first point Testcontainers at its socket: `export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock`.
 
 ```bash
 dotnet test --filter Category=Integration
