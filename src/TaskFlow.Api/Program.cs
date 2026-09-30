@@ -1,4 +1,3 @@
-using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.HttpOverrides;
 using TaskFlow.Api.Data;
 using TaskFlow.Api.Errors;
@@ -18,8 +17,9 @@ builder.Services.AddTaskFlowRateLimiting(config);
 builder.Services.AddTaskFlowProblemDetails();
 builder.Services.AddTaskFlowSwagger();
 
-builder.Services.AddControllers()
-    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+// Enums: exactly one declared name. No numbers, no comma-separated [Flags] lists (see StrictEnum).
+builder.Services.AddControllers(o => o.ModelBinderProviders.Insert(0, new StrictEnumModelBinderProvider()))
+    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new StrictEnumConverterFactory()));
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>("database", tags: new[] { "ready" });

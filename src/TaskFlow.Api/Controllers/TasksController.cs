@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using TaskFlow.Api.Errors;
 using TaskFlow.Api.Services;
 using TaskFlow.Shared.Contracts.Tasks;
 
@@ -26,8 +25,6 @@ public sealed class TasksController : ControllerBase
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<IReadOnlyList<TaskResponse>>> List([FromQuery] TaskListQuery query, CancellationToken ct)
     {
-        RejectUndefined(query.Status, "status");
-        RejectUndefined(query.Priority, "priority");
         return Ok(await _tasks.GetTasksAsync(query.ToQuery(), ct));
     }
 
@@ -76,14 +73,5 @@ public sealed class TasksController : ControllerBase
     {
         await _tasks.SoftDeleteAsync(id, ct);
         return NoContent();
-    }
-
-    private static void RejectUndefined<TEnum>(TEnum[]? values, string field) where TEnum : struct, Enum
-    {
-        if (values is not null && values.Any(v => !Enum.IsDefined(v)))
-        {
-            throw new DomainValidationException(field,
-                $"{char.ToUpperInvariant(field[0])}{field[1..]} must be one of: {string.Join(", ", Enum.GetNames<TEnum>())}.");
-        }
     }
 }

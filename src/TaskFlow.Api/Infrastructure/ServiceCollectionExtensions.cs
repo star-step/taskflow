@@ -103,6 +103,7 @@ public static class ServiceCollectionExtensions
                 Description = "Paste the accessToken from /api/auth/login.",
                 Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
             };
+            o.SchemaFilter<EnumNamesSchemaFilter>();
             o.AddSecurityDefinition("Bearer", bearer);
             o.AddSecurityRequirement(new OpenApiSecurityRequirement { [bearer] = Array.Empty<string>() });
 

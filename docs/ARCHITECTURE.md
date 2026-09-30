@@ -341,6 +341,7 @@ Two layers, one error shape:
    - `[Required]`, `[StringLength(TaskFieldLimits.TitleMaxLength)]` on `Title`, plus a custom `[NotWhiteSpace]`.
    - `[DefinedEnum]` on `Status` and `Priority`.
    - Unknown enum *strings* (`"Urgent"`) fail JSON deserialization; that too is turned into a 400 with a field-level message rather than a generic parse error.
+   - Enum values are accepted **only as one declared name**, case-insensitive (`StrictEnum`), in JSON bodies and in query strings. Numbers (`3`, `"2"`) and comma-separated lists (`"Medium, High"`, `?status=ToDo,InProgress`) are rejected with 400: the framework defaults would OR them together as `[Flags]` and silently store a different value. To filter by several values, repeat the parameter.
 2. **Business rules** in `TaskService` throw `DomainValidationException` (e.g. title trimmed to empty). The exception handler maps it to the same 400 shape.
 
 `ApiBehaviorOptions.InvalidModelStateResponseFactory` is replaced so model-state failures produce exactly the same body as the exception handler.
