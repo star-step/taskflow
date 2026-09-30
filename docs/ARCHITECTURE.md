@@ -1,10 +1,11 @@
 # TaskFlow — Architecture & Implementation Plan
 
-> **Status:** Draft v0.2 for approval · **Date:** 2026-09-28 · **Scope:** internal team task manager
+> **Status:** v1.0, implemented · **Created:** 2026-09-28 · **Updated:** 2026-09-30 · **Scope:** internal team task manager
 > **v0.2:** added self-service registration, refresh-token sessions and sign-out (§4.2, §5, §6, §7, §9, §13).
 > **Companion:** UI mockups in [`docs/mockups/index.html`](mockups/index.html) (desktop / tablet / mobile)
 >
-> Nothing has been implemented yet. Section 13 lists the decisions that need your sign-off before work starts.
+> Everything in this document is implemented; §12 records the delivery phases and §13 the approved decisions.
+> Where the design changed during implementation or review, this document was updated to match the code.
 
 ---
 
@@ -106,7 +107,7 @@ This is the "cross-framework awareness" piece. .NET Standard 2.0 is the highest 
 | `TaskFieldLimits` | `TitleMaxLength = 200`, `DescriptionMaxLength = 2000`, `AssignedToMaxLength = 100` — used by both DTO validation and EF column config, so they cannot drift |
 | `RegisterRequest`, `LoginRequest`, `AuthResponse`, `UserResponse` | Account contracts |
 | `AccountRules` | `PasswordMinLength = 12`, `DisplayNameMaxLength = 100`, `EmailMaxLength = 256` — used by the DTOs, Identity options and the EF config |
-| `EnumDisplay` | `ToDisplayName()` → `"In Progress"`, and `TryParseFlexible("in progress")` for query strings |
+| `EnumDisplay` | `ToDisplayName()` → `"In Progress"`, and `TryParseFlexible("in progress")` for .NET clients that parse user input (the API itself uses the stricter `StrictEnum`, see §5.3) |
 
 Notes on targeting netstandard2.0:
 
@@ -120,35 +121,39 @@ Notes on targeting netstandard2.0:
 
 ```
 TaskFlow.Api/
-├── Program.cs                       # composition root
+├── Program.cs                       # composition root and middleware order
 ├── Controllers/
 │   ├── AuthController.cs            # register, login, refresh, logout, me
 │   ├── UsersController.cs           # GET /api/users (assignee suggestions)
-│   └── TasksController.cs           # CRUD + /summary
-├── Domain/
-│   ├── TaskItem.cs
-│   ├── AppUser.cs                   # : IdentityUser<int>
-│   └── RefreshToken.cs
+│   ├── TasksController.cs           # CRUD + /summary
+│   └── TaskListQuery.cs             # query-string model for GET /api/tasks
+├── Domain/                          # TaskItem, AppUser (: IdentityUser<int>), RefreshToken, IHasTimestamps
 ├── Services/
-│   ├── ITaskService.cs / TaskService.cs            # business logic + LINQ
+│   ├── ITaskService.cs / TaskService.cs               # business logic + LINQ
 │   ├── ITaskSummaryQuery.cs / SqlTaskSummaryQuery.cs  # raw SQL via SqlClient
-│   ├── IAuthService.cs / AuthService.cs            # register / login / refresh / logout rules
-│   ├── ITokenService.cs / JwtTokenService.cs       # access token (JWT) creation
-│   └── EmailDomainValidator.cs      # IUserValidator<AppUser>: allowed work-email domains
+│   ├── IAuthService.cs / AuthService.cs               # register / login / refresh / logout rules
+│   └── ITokenService.cs / JwtTokenService.cs          # access token (JWT) creation
+├── Security/                        # EmailDomainValidator, CommonPasswordValidator,
+│                                    # PersonalInfoPasswordValidator, TokenHasher
 ├── Data/
-│   ├── AppDbContext.cs              # IdentityDbContext; query filter, audit timestamps
+│   ├── AppDbContext.cs              # IdentityUserContext; query filter, audit timestamps, UTC converter
 │   ├── Configurations/              # IEntityTypeConfiguration<T> per entity
 │   ├── Seed/TaskSeedData.cs         # HasData rows (deterministic)
-│   ├── DevUserSeeder.cs             # hashes demo passwords at startup (Development/Docker only)
+│   ├── DatabaseStartup.cs           # migrate on startup + demo users (Development/Docker only)
 │   └── Migrations/
 ├── Errors/
-│   ├── GlobalExceptionHandler.cs    # IExceptionHandler → ProblemDetails
-│   ├── NotFoundException.cs
-│   ├── DomainValidationException.cs
-│   └── AuthExceptions.cs            # InvalidCredentials, EmailAlreadyRegistered, EmailDomainNotAllowed
-├── Security/
-│   ├── CommonPasswordValidator.cs   # rejects well-known long passwords and simple patterns
-│   └── PersonalInfoPasswordValidator.cs
+│   ├── GlobalExceptionHandler.cs    # IExceptionHandler → ProblemDetails; the one place exceptions are logged
+│   ├── ProblemDetailsSetup.cs       # traceId/errorCode on every problem; model-state 400 shape
+│   ├── AppException.cs, AuthExceptions.cs, ErrorCodes.cs
+│   └── SqlErrors.cs                 # SQL error number → 409 / 503 / 500
+├── Infrastructure/
+│   ├── ServiceCollectionExtensions.cs  # DB, Identity, JWT, Swagger registration
+│   ├── StrictEnum.cs                # one-name-only enum parsing (JSON converter + model binder)
+│   ├── RequestLoggingMiddleware.cs  # one log line per request
+│   ├── RateLimits.cs, RefreshCookie.cs, RequireClientHeaderAttribute.cs
+│   ├── ForwardedHeadersSetup.cs     # trusted proxies for X-Forwarded-For
+│   └── FieldNames.cs, EnumNamesSchemaFilter.cs
+├── Options/                         # JwtOptions, AuthOptions, SeedOptions (validated on start)
 ├── Mapping/TaskMappings.cs          # entity ↔ DTO (hand-written, no AutoMapper)
 └── appsettings*.json
 ```
@@ -164,12 +169,14 @@ TaskFlow.Api/
 | `Id` | `int IDENTITY` PK | |
 | `Title` | `nvarchar(200)` NOT NULL | required, trimmed, 1–200 chars |
 | `Description` | `nvarchar(2000)` NULL | optional |
-| `Status` | `tinyint` NOT NULL | `CHECK (Status BETWEEN 0 AND 2)`, default `0` |
-| `Priority` | `tinyint` NOT NULL | `CHECK (Priority BETWEEN 0 AND 3)`, default `1` |
+| `Status` | `tinyint` NOT NULL | `CHECK (Status BETWEEN 0 AND 2)` |
+| `Priority` | `tinyint` NOT NULL | `CHECK (Priority BETWEEN 0 AND 3)` |
 | `AssignedTo` | `nvarchar(100)` NULL | free text per requirement (display name or email) |
 | `CreatedDate` | `datetime2(3)` NOT NULL | UTC, set on insert only |
 | `ModifiedDate` | `datetime2(3)` NOT NULL | UTC, set on insert and every update |
-| `IsDeleted` | `bit` NOT NULL | default `0` |
+| `IsDeleted` | `bit` NOT NULL | |
+
+There are no database default constraints: the API always writes every column (a new task defaults to To Do in `TaskService`). Scripts that insert rows directly must supply all values, as `database/seed.sql` does.
 
 **Why store enums as `tinyint` rather than strings?** Sorting. `ORDER BY Priority DESC` must put *Critical* before *High*; with strings it sorts alphabetically. Integers also keep the index small. The API still exposes enums as strings in JSON (`"InProgress"`), and the raw summary maps codes to names in C#. The check constraints stop bad values arriving by any path, including hand-written SQL.
 
@@ -245,13 +252,13 @@ Seeding is done in an **EF migration** (`20260928_SeedSampleTasks`) using `HasDa
 
 Visible totals: **To Do 5 · In Progress 4 · Done 3**; **Critical 3 · High 4 · Medium 2 · Low 3**.
 
-Demo users are not in the migration because salted hashes are non-deterministic. `DevUserSeeder` creates them at startup through `UserManager`, only when `Seed:DemoUsers` is enabled (Development and Docker), reading credentials from configuration / `.env`. Anyone can also just register.
+Demo users are not in the migration because salted hashes are non-deterministic. `DatabaseStartup.PrepareDatabaseAsync` creates them at startup through `UserManager`, only when `Seed:DemoUsers` is enabled (Development and Docker), reading credentials from configuration / `.env`. Anyone can also just register.
 
 ---
 
 ## 5. API design
 
-Base path `/api`. JSON uses camelCase and string enums (`JsonStringEnumConverter`). Every endpoint requires a bearer token except register, login, refresh, logout and health.
+Base path `/api`. JSON uses camelCase and string enums (`StrictEnumConverterFactory`: exactly one declared name, see §5.3). Every endpoint requires a bearer token except register, login, refresh, logout and health.
 
 **Account endpoints**
 
@@ -352,7 +359,7 @@ Implemented with .NET 8's `IExceptionHandler` + `AddProblemDetails()`, returning
 
 ```json
 {
-  "type": "https://httpstatuses.io/400",
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
   "title": "Validation failed",
   "status": 400,
   "detail": "One or more fields are invalid.",
@@ -511,10 +518,10 @@ sequenceDiagram
 |---|---|
 | **Access token** | JWT, HMAC-SHA256, **15 minutes**. Claims: `sub` (user id), `email`, `name`, `jti`. Validated for signature, issuer, audience, lifetime (1-minute clock skew). Key from `Jwt__SigningKey` (≥ 32 bytes), never committed. |
 | **Where the SPA keeps it** | In memory only (a React ref), never in `localStorage`/`sessionStorage`, so injected script can't read a stored copy. |
-| **Refresh token** | 32 random bytes, base64url, **7-day** sliding lifetime. Sent as cookie `tf_refresh`: `HttpOnly; Secure; SameSite=Strict; Path=/api/auth`. Only its SHA-256 hash is stored. |
+| **Refresh token** | 32 random bytes, base64url, **7-day** sliding lifetime. Sent as cookie `tf_refresh`: `HttpOnly; Secure; SameSite=Strict; Path=/api/auth`. `Secure` is controlled by `Auth:CookieSecure` (default true); the local Docker setup turns it off because Safari rejects Secure cookies on `http://localhost`. Keep it on anywhere served over HTTPS. A failed refresh also deletes the cookie. Only its SHA-256 hash is stored. |
 | **Rotation + reuse detection** | Each refresh revokes the used token and issues a new one in the same family. If an already-revoked token is presented (it has been stolen and replayed), the whole family is revoked and the user must sign in again. |
 | **Page reload** | The in-memory access token is lost; on start-up the SPA calls `POST /api/auth/refresh` once. The cookie restores the session, or the user sees the sign-in page. |
-| **CSRF** | The cookie is `SameSite=Strict` and scoped to `/api/auth`. `/refresh` and `/logout` also require the header `X-TaskFlow-Client: web`, which a cross-site form can't send. Task endpoints use the bearer header, not cookies, so they aren't exposed to CSRF. |
+| **CSRF** | The cookie is `SameSite=Strict` and scoped to `/api/auth`. `/refresh` and `/logout` also require an `X-TaskFlow-Client` header (its presence is checked; the SPA sends `web`), which a cross-site form can't send. Task endpoints use the bearer header, not cookies, so they aren't exposed to CSRF. |
 | **Lockout** | 5 failed passwords → locked for 15 minutes (Identity lockout). While locked, login returns the *same* `401 INVALID_CREDENTIALS` as any other failure (no unlock time, no separate code) and still runs a hash check, so a caller can't tell a locked account from a wrong password or unknown email. Trade-off: anyone who knows a colleague's email can lock them out for 15 minutes; the per-IP login rate limit slows this, and per-account throttling or CAPTCHA would be the next step if it becomes a problem. |
 | **Wrong credentials** | One response for every failure: `401 INVALID_CREDENTIALS`, "Email or password is incorrect. After several failed attempts, sign-in is paused for 15 minutes." There's no attempts-left count (it would reveal that the account exists). Unknown emails and locked accounts still run a hash comparison, so response times don't reveal which case it was. |
 | **Rate limits** | Login 10 / min / IP; register 5 / 10 min / IP; refresh 30 / min / IP. Exceeding them returns `429` with `Retry-After`. |
@@ -553,7 +560,7 @@ No global state library: server state lives in TanStack Query, auth in a small R
 <App>
  ├─ <AuthProvider>                     access token (in memory) + user; register(), login(), logout()
  │   │                                 calls /auth/refresh once on start-up to restore the session
- │   ├─ <LoginPage>        /login      email, password, lockout / rate-limit messages
+ │   ├─ <LoginPage>        /login      email, password; shows the API's single failure message
  │   ├─ <RegisterPage>     /register   display name, email, password with live rule checklist
  │   └─ <RequireAuth> → <TasksPage>  /
  │       ├─ <AppHeader>                logo · search · view toggle · New task · <UserMenu> (name, email, Sign out)
@@ -574,7 +581,7 @@ No global state library: server state lives in TanStack Query, auth in a small R
 ### 7.3 API layer
 
 - `api/client.ts` — a thin `fetch` wrapper: adds the bearer header, parses `application/problem+json` into a typed `ApiError { status, errorCode, errors }`. On a 401 it calls `/auth/refresh` **once** (concurrent 401s share one refresh promise), retries the original request, and only if the refresh fails clears the session and sends the user to `/login?returnTo=…`.
-- `api/auth.ts` — `register`, `login`, `refresh`, `logout`, `me`. All send `credentials: 'same-origin'` and the `X-TaskFlow-Client: web` header.
+- `api/auth.ts` — `register`, `login`, `refresh`, `logout`, `me`. All send `credentials: 'same-origin'`; refresh and logout add the `X-TaskFlow-Client: web` header.
 - The register form checks the same rules as the API while typing (length, name/email not in password, passwords match). The common-password check is server-only, and its 400 is shown under the password field.
 - `api/tasks.ts` — one function per endpoint; hooks `useTasks(filters)`, `useTask(id)`, `useCreateTask()`, `useUpdateTask()`, `useUpdateStatus()`, `useDeleteTask()`, `useSummary()`.
 - **Status change is optimistic**: the pill changes instantly; on error it rolls back and shows a toast. On success the list and summary queries are invalidated.
@@ -626,113 +633,82 @@ See [`docs/mockups/index.html`](mockups/index.html) for every screen at all thre
 
 ## 8. Configuration
 
-| Key | Where | Example |
+| Key | Where | Example / default |
 |---|---|---|
-| `ConnectionStrings__TaskFlow` | env / user-secrets | `Server=db;Database=TaskFlow;User Id=sa;Password=…;TrustServerCertificate=True` |
+| `ConnectionStrings__TaskFlow` | env / user-secrets | `Server=db,1433;Database=TaskFlow;User Id=sa;Password=…;TrustServerCertificate=True;Encrypt=True` |
 | `Jwt__Issuer`, `Jwt__Audience` | appsettings | `taskflow-api`, `taskflow-web` |
-| `Jwt__SigningKey` | env / user-secrets only | 32+ random bytes, base64 |
+| `Jwt__SigningKey` | env / user-secrets only | 32+ characters (`openssl rand -base64 48`); validated on start |
 | `Jwt__AccessTokenMinutes` | appsettings | `15` |
 | `Auth__RefreshTokenDays` | appsettings | `7` |
-| `Auth__AllowedEmailDomains` | appsettings / env | `["company.com"]` (empty = any domain; Development only) |
-| `Auth__Lockout__MaxFailedAttempts`, `Auth__Lockout__Minutes` | appsettings | `5`, `15` |
-| `Database__MigrateOnStartup` | env | `true` in Docker, `false` elsewhere |
-| `Seed__DemoUsers` | env | `true` in Development/Docker |
-| `Cors__AllowedOrigins` | appsettings.Development | `http://localhost:5173` |
-| `VITE_API_BASE_URL` | web build | `/api` |
+| `Auth__AllowedEmailDomains__0…` | appsettings / env | `company.com` (empty = any domain; Development only) |
+| `Auth__CookieSecure` | appsettings / env | `true`; `false` in Development and the local Docker `.env` |
+| `Auth__Lockout__MaxFailedAttempts`, `Auth__Lockout__Minutes` | appsettings | `5`, `15` (the failure message uses the configured minutes) |
+| `RateLimits__LoginPerMinute`, `__RegisterPerTenMinutes`, `__RefreshPerMinute` | appsettings | `10`, `5`, `30` per client IP |
+| `ForwardedHeaders__KnownProxies__0…`, `ForwardedHeaders__KnownNetworks__0…` | env | Docker: `172.30.89.10` (nginx). Unset = loopback only |
+| `Database__MigrateOnStartup` | env | `true` in Development and Docker, `false` otherwise |
+| `Seed__DemoUsers`, `Seed__Users__N__Email/DisplayName/Password` | env / appsettings.Development | Development and Docker only |
+| `Swagger__Enabled` | appsettings | `true` in Development only (Docker sets `false`) |
+| `Cors__AllowedOrigins__0…` | appsettings.Development | `http://localhost:5173` (fallback; the Vite proxy normally makes calls same-origin) |
+| `Logging__Console__FormatterName` | env | `json` in Docker |
+
+The web app has no build-time configuration: it always calls `/api` on its own origin (nginx or the Vite proxy).
 
 ---
 
 ## 9. Testing strategy
 
-**Unit tests (`TaskFlow.Api.Tests`, xUnit)** — `TaskService` against **EF Core SQLite in-memory** rather than the EF InMemory provider, because SQLite is relational: global query filters, `Contains → IN`, and ordering behave like SQL Server. `FakeTimeProvider` freezes the clock.
+| Layer | Where | What it proves |
+|---|---|---|
+| **Service unit tests** | `tests/TaskFlow.Api.Tests/Services` | `TaskService` and `AuthService` on **in-memory SQLite** (relational, so query filters, `IN`, ordering and unique indexes behave like SQL Server), with the 13 seed rows and a frozen `FakeTimeProvider`: filtering, every sort order, create/update/PUT/PATCH audit dates, soft delete, register rules, lockout, identical sign-in failures, refresh rotation, reuse detection and the grace boundary, expiry, security-stamp invalidation |
+| **HTTP pipeline tests** | `tests/TaskFlow.Api.Tests/Api` | The real `Program` via `WebApplicationFactory`: ProblemDetails shape and status codes, strict enum parsing in query and body, malformed JSON, auth cookie flags and deletion, JWT tampering (bad key, `alg:none`, wrong issuer/audience, expired, edited payload), rate limiting with `Retry-After`, `/api/users`, request logging fields and redaction, no Error logs for expected 4xx, trusted-proxy handling |
+| **Handler / helper unit tests** | `tests/TaskFlow.Api.Tests/Errors`, `Api` | Exception → status/code mapping and log levels, SQL error classification, enum converter and binder scope |
+| **SQL Server integration** | `tests/TaskFlow.Api.Tests/Integration` (`Category=Integration`) | Testcontainers SQL Server 2022 with the real migrations: the raw `GROUPING SETS` summary, the summary over HTTP matching the list after changes, a real unique-key violation mapped to 409. Skipped locally without Docker; fails in CI |
+| **Shared library** | `tests/TaskFlow.Shared.Tests` | Validation attributes and messages, `EnumDisplay` round-trips (netstandard2.0 code on .NET 8) |
+| **Front end** | `src/TaskFlow.Web/src/test` (Vitest + Testing Library) | API client refresh-and-retry and error parsing; session restore on start-up; login/register behaviour; optimistic status change and targeted rollback; URL filter parsing and limits; form validation mirrors the API |
+| **End-to-end smoke** | `.github/scripts/smoke-test.sh` | Against the running Docker stack: auth, list, summary consistency, create (Location header) / patch / soft delete, security headers, Host-less HTTP/1.0 request |
 
-| Test | Proves |
-|---|---|
-| `GetTasksAsync_FiltersByStatusAndPriority` | only matching rows returned |
-| `GetTasksAsync_ExcludesSoftDeleted` | query filter works |
-| `GetTasksAsync_DefaultSort_IsCriticalFirstThenMostRecentlyModified` | the LINQ ordering |
-| `CreateAsync_SetsCreatedAndModifiedDates_AndTrimsTitle` | audit + normalisation |
-| `CreateAsync_WhitespaceTitle_ThrowsDomainValidationException` | business rule |
-| `UpdateStatusAsync_UpdatesModifiedDate_NotCreatedDate` | audit on update |
-| `UpdateAsync_UnknownId_ThrowsNotFound` | 404 path |
-| `SoftDeleteAsync_SetsIsDeleted_RowStillExists` | uses `IgnoreQueryFilters()` to prove the row is still there |
-| `GlobalExceptionHandler_MapsNotFound_To404ProblemDetails` | error format |
-| `RegisterAsync_DuplicateEmailDifferentCase_ThrowsEmailAlreadyRegistered` | case-insensitive uniqueness |
-| `RegisterAsync_DisallowedDomain_ThrowsEmailDomainNotAllowed` | domain allow-list |
-| `RegisterAsync_PasswordContainsEmailName_ReturnsPasswordError` | personal-info validator |
-| `LoginAsync_FiveWrongPasswords_LocksAccount` | lockout |
-| `RefreshAsync_RotatesToken_AndRevokesOld` | rotation |
-| `RefreshAsync_ReusedRevokedToken_RevokesWholeFamily` | reuse detection |
-| `RefreshAsync_AfterSecurityStampChange_Fails` | password change kills sessions |
+Assertions use xUnit `Assert` (FluentAssertions v8 is commercially licensed). Coverage (coverlet, migrations excluded) is gated at 80% of lines in CI.
 
-Auth tests run against the same SQLite fixture with the real `UserManager` (Identity's EF stores work on SQLite). `FakeTimeProvider` moves time forward to test token and lockout expiry.
-
-**Shared tests (`TaskFlow.Shared.Tests`)** — `DefinedEnumAttribute` rejects `(TaskPriority)99`; `EnumDisplay` round-trips all members.
-
-**Raw SQL** — it is SQL Server-specific (`GROUPING SETS`), so it is not faked in SQLite. It is covered by an optional integration test (`[Trait("Category","Integration")]`) using **Testcontainers for .NET** to start SQL Server, skipped when Docker isn't available. It also asserts the soft-deleted seed row is not counted.
-
-Run: `dotnet test` (unit only by default) · `dotnet test --filter Category=Integration`.
+Run: `dotnet test --filter "Category!=Integration"` · `dotnet test --filter Category=Integration` · `npm --prefix src/TaskFlow.Web test`.
 
 ---
 
 ## 10. Docker
 
-```yaml
-# docker-compose.yml (outline)
-services:
-  db:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    platform: linux/amd64
-    environment:
-      ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: ${SA_PASSWORD}
-    volumes: [ "mssql-data:/var/opt/mssql" ]
-    healthcheck:
-      test: /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -Q "SELECT 1" -b
-      interval: 10s
-      retries: 10
+`docker-compose.yml` runs three services on a fixed bridge network (`172.30.89.0/24`):
 
-  api:
-    build: { context: ., dockerfile: src/TaskFlow.Api/Dockerfile }
-    environment:
-      ConnectionStrings__TaskFlow: Server=db;Database=TaskFlow;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True
-      Jwt__SigningKey: ${JWT_SIGNING_KEY}
-      Database__MigrateOnStartup: "true"
-      Seed__DemoUsers: "true"
-    depends_on: { db: { condition: service_healthy } }
+| Service | Image | Notes |
+|---|---|---|
+| `db` | `mcr.microsoft.com/mssql/server:2022-latest` (`linux/amd64`) | Data in the `mssql-data` volume; health check with `sqlcmd`; published on `127.0.0.1:1433` only, for local tools and `dotnet run` |
+| `api` | built from `src/TaskFlow.Api/Dockerfile` | Starts after `db` is healthy; applies migrations and creates demo users; health check on `/health/ready`; JSON console logs; trusts `X-Forwarded-For` only from nginx |
+| `web` | built from `src/TaskFlow.Web/Dockerfile` | nginx with a fixed address `172.30.89.10`; the only service published on all interfaces (`8080:80`); starts after `api` is healthy |
 
-  web:
-    build: { context: src/TaskFlow.Web }
-    ports: [ "8080:80" ]
-    depends_on: [ api ]
+- **API image:** multi-stage. `mcr.microsoft.com/dotnet/sdk:8.0` restores with `--locked-mode` (NuGet lock files) and publishes; `mcr.microsoft.com/dotnet/aspnet:8.0` runs it as the built-in non-root `app` user on port 8080. The build context is the repository root so `TaskFlow.Shared` is included.
+- **Web image:** `node:22-alpine` runs `npm ci && npm run build`; `nginx:1.27-alpine` serves `dist/` with SPA fallback, long-lived caching for hashed assets, security headers (CSP, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy), and proxies `/api/` to `http://api:8080`, forwarding the client's `Host` with its port (falling back to `localhost` when a client sends none).
+- **Migrations:** applied on API startup when `Database__MigrateOnStartup=true`, with a short retry loop. For real deployments, an EF migration bundle run as a pipeline step is preferred.
+- **Fixed subnet:** the pinned nginx address is what lets the API trust exactly one proxy. If `172.30.89.0/24` clashes with a local network or VPN, change the subnet, the `web` address and `ForwardedHeaders__KnownProxies__0` together. A stack created before this network existed needs one `docker compose down` (without `-v`, so data is kept) before `up`.
 
-volumes: { mssql-data: {} }
-```
+> **Apple Silicon / macOS note:** SQL Server LocalDB is Windows-only, so on a Mac we use Docker. The SQL Server 2022 image is amd64-only; it runs on Apple Silicon through Rosetta emulation (Docker Desktop: Settings → General → "Use Rosetta for x86/amd64 emulation"; Colima: `colima start --vm-type vz --vz-rosetta`), which is why `platform: linux/amd64` is pinned.
 
-- **API image:** multi-stage — `mcr.microsoft.com/dotnet/sdk:8.0` restores and publishes, `mcr.microsoft.com/dotnet/aspnet:8.0` runs as the built-in non-root `app` user on port 8080. The solution root is the build context so `TaskFlow.Shared` is included.
-- **Web image:** `node:20-alpine` runs `npm ci && npm run build`; `nginx:alpine` serves `dist/` with SPA fallback (`try_files $uri /index.html`) and proxies `/api/` to `http://api:8080`.
-- **Migrations:** applied on API startup when `Database__MigrateOnStartup=true`, with a short retry loop. For real deployments, an EF migration bundle (`dotnet ef migrations bundle`) run as a pipeline step is preferred.
-- Only nginx is published on all interfaces. SQL Server is published on `127.0.0.1:1433` only, so local tools and `dotnet run` can use it; the API is reachable only through nginx.
-
-> **Apple Silicon / macOS note:** SQL Server LocalDB is Windows-only, so on this Mac we use Docker. The SQL Server 2022 image is amd64-only; it runs on Apple Silicon through Rosetta emulation (Docker Desktop: Settings → General → "Use Rosetta for x86/amd64 emulation"; Colima: `colima start --vm-type vz --vz-rosetta`), which is why `platform: linux/amd64` is pinned.
-
-Usage once built: `cp .env.example .env` → `docker compose up --build` → open `http://localhost:8080`.
+Usage: `cp .env.example .env` → set `JWT_SIGNING_KEY` → `docker compose up --build` → open `http://localhost:8080`.
 
 ---
 
 ## 11. Cross-cutting concerns
 
-- **Logging:** built-in `ILogger`; JSON console output in Docker (`Logging__Console__FormatterName=json`). `RequestLoggingMiddleware` writes one line per request (method, path, status, elapsed ms, traceId), never query strings, headers or bodies; health probes log at Debug. The logged `traceId` is the one returned in ProblemDetails, so an error a user reports can be found in the logs.
-- **Health:** `/health/live` (no dependencies) and `/health/ready` (`AddDbContextCheck<AppDbContext>()`); compose uses `/health/ready` for the API healthcheck.
-- **OpenAPI:** Swashbuckle, enabled in Development and Docker, with XML comments and example payloads.
+- **Logging:** built-in `ILogger`; JSON console output in Docker. `RequestLoggingMiddleware` (outermost) writes one line per request (method, path, status, elapsed ms, traceId) and never logs query strings, headers or bodies; health probes log at Debug and 5xx at Warning. `GlobalExceptionHandler` is the single place exceptions are logged (unexpected at Error with the stack trace, expected 4xx at Debug); ASP.NET's own exception-handler log category is filtered out to avoid Error-level noise for normal 4xx, and anything that escapes the handler is logged at Error by the request-logging middleware. The logged `traceId` is the one returned in ProblemDetails.
+- **Health:** `/health/live` (no dependencies) and `/health/ready` (`AddDbContextCheck<AppDbContext>()`); compose uses `/health/ready`.
+- **OpenAPI:** Swashbuckle in Development (`/swagger`), with XML comments, a bearer security scheme and enums documented as names. Disabled in Docker.
 - **Cancellation:** every async endpoint accepts `CancellationToken` and passes it to EF / SqlClient.
-- **Concurrency (considered, deferred):** a `rowversion` column + `If-Match` would stop two people overwriting each other's edits. Last-write-wins is acceptable for a small internal team; the exception handler already maps `DbUpdateConcurrencyException` to 409 so adding it later is small.
+- **Database errors:** SQL error numbers are classified: unique-key violations → 409 `DUPLICATE_VALUE`, constraint violations → 409 `CONSTRAINT_VIOLATION`, transient/connectivity errors and exhausted EF retries → 503, anything else → 500.
+- **Concurrency (considered, deferred):** a `rowversion` column + `If-Match` would stop two people overwriting each other's edits. Last-write-wins is acceptable for a small internal team; the exception handler already maps `DbUpdateConcurrencyException` to 409.
+- **CI** (`.github/workflows/ci.yml`): .NET build with warnings as errors, unit + pipeline tests with an 80% line-coverage gate, a migration-drift check, NuGet and npm vulnerability scans, web type-check/lint/test/build, the SQL Server integration tests, and a Docker Compose build with the smoke test.
 
 ---
 
-## 12. Implementation plan
+## 12. Implementation plan (delivered)
 
-Each phase ends in a runnable state.
+Each phase ended in a runnable state and was committed separately. All ten phases are complete; after them came project configuration (`CLAUDE.md`), ESLint, coverage, NuGet lock files, CI, request logging, and two rounds of independent review whose findings were fixed test-first.
 
 | Phase | Deliverable | Key tasks |
 |---|---|---|
@@ -741,7 +717,7 @@ Each phase ends in a runnable state.
 | **3. Data layer** | DB created from migrations | `TaskItem`, `AppUser`, `RefreshToken`, `IdentityDbContext` mapping (Users + RefreshTokens only), configurations (check constraints, filtered indexes), `AppDbContext` (query filter, audit), `InitialCreate` + `SeedSampleTasks` migrations, `database/seed.sql`. |
 | **4. Task API** | CRUD works in Swagger | `TaskService` (LINQ), `TasksController`, mappings, validation, `GlobalExceptionHandler`, ProblemDetails for model state. |
 | **5. Summary** | `/api/tasks/summary` | `SqlTaskSummaryQuery` with SqlClient + `GROUPING SETS`; `database/task-summary.sql`. |
-| **6. Accounts & auth** | Register, sign in, refresh, sign out work in Swagger; task endpoints locked down | `AddIdentityCore` + options (password, lockout, unique email), `EmailDomainValidator`, `CommonPasswordValidator`, `PersonalInfoPasswordValidator`, `AuthService` (register / login / refresh rotation + reuse detection / logout), `JwtTokenService`, refresh cookie, `AuthController`, `UsersController`, `DevUserSeeder`, fallback policy, rate limits, Swagger bearer. |
+| **6. Accounts & auth** | Register, sign in, refresh, sign out work in Swagger; task endpoints locked down | `AddIdentityCore` + options (password, lockout, unique email), `EmailDomainValidator`, `CommonPasswordValidator`, `PersonalInfoPasswordValidator`, `AuthService` (register / login / refresh rotation + reuse detection / logout), `JwtTokenService`, refresh cookie, `AuthController`, `UsersController`, demo-user seeding (`DatabaseStartup`), fallback policy, rate limits, Swagger bearer. |
 | **7. Unit tests** | `dotnet test` green | SQLite fixture, `FakeTimeProvider`, the tests in §9; optional Testcontainers integration test. |
 | **8. React app** | UI matches mockups | Vite scaffold, tokens, router, API client with refresh-and-retry, auth context, sign-in and create-account pages, user menu with sign out, table + cards, filters, summary, create/edit dialog, status select (optimistic), delete confirm, toasts; board view with dnd-kit. |
 | **9. Docker** | `docker compose up` works end to end | API + web Dockerfiles, nginx config, compose, `.env.example`, health checks. |
@@ -754,13 +730,13 @@ Each phase ends in a runnable state.
 | Shared | `System.ComponentModel.Annotations` |
 | Api | `Microsoft.EntityFrameworkCore.SqlServer` 8.x, `Microsoft.EntityFrameworkCore.Design` 8.x, `Microsoft.Data.SqlClient`, `Microsoft.AspNetCore.Authentication.JwtBearer` 8.x, `Microsoft.AspNetCore.Identity.EntityFrameworkCore` 8.x, `Swashbuckle.AspNetCore`, `Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore` |
 | Api.Tests | `xunit`, `xunit.runner.visualstudio`, `Microsoft.NET.Test.Sdk`, `Microsoft.EntityFrameworkCore.Sqlite` 8.x, `Microsoft.Extensions.TimeProvider.Testing`, `Testcontainers.MsSql` (optional) |
-| Web | `react`, `react-dom`, `react-router-dom`, `@tanstack/react-query`, `@radix-ui/react-dialog`, `@radix-ui/react-select`, `@dnd-kit/core`, `vite`, `typescript`, `vitest`, `@testing-library/react` |
+| Web | `react`, `react-dom`, `react-router`, `@tanstack/react-query`, `@radix-ui/react-dialog`, `@radix-ui/react-select`, `@dnd-kit/core`, `vite`, `typescript`, `vitest`, `@testing-library/react` |
 
 Assertions use xUnit's built-in `Assert` (FluentAssertions v8 moved to a commercial licence, so it is avoided).
 
 ---
 
-## 13. Decisions needing your approval
+## 13. Decisions (approved)
 
 | # | Decision | Recommendation | Alternative |
 |---|---|---|---|
@@ -775,4 +751,4 @@ Assertions use xUnit's built-in `Assert` (FluentAssertions v8 moved to a commerc
 | 7 | Concurrency control | Last write wins in v1 | `rowversion` + `If-Match` now |
 | 8 | Raw SQL access | ADO.NET `SqlClient` (strictly "not EF") | `Database.SqlQuery<T>` (still raw SQL, but via EF) |
 
-Once you approve (or adjust) these, implementation starts at Phase 1.
+All recommendations above were approved and implemented as described.

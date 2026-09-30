@@ -8,9 +8,14 @@ paths:
 
 - Endpoint flow: controller (binding plus `[ProducesResponseType]` for every status) → `I*Service` → `AppDbContext`.
   Register new services in `Infrastructure/ServiceCollectionExtensions.cs`.
-- Validation happens in two layers. DataAnnotations on the Shared DTOs (`[Required]`, `[StringLength(TaskFieldLimits.*)]`,
-  `[DefinedEnum]`, `[NotWhiteSpace]`) run automatically. Business rules throw `DomainValidationException(field, message)`
-  with camelCase field names.
+- Validation happens in two layers. DataAnnotations on the Shared DTOs (`[Required]`, `[StringLength(TaskFieldLimits.*)]`
+  with `{1}`/`{2}` placeholders in messages, `[DefinedEnum]`, `[NotWhiteSpace]`) run automatically. Business rules throw
+  `DomainValidationException(field, message)` with camelCase field names.
+- Enums: `StrictEnum` (JSON converter + query/route model binder) accepts exactly one declared name, case-insensitive.
+  Don't reintroduce `JsonStringEnumConverter` or the default enum binding; they accept numbers and `[Flags]` lists.
+- Database errors: map new SQL error numbers in `Errors/SqlErrors.cs`; don't catch `SqlException` in services.
+- Logging: exceptions are logged only in `GlobalExceptionHandler` (and escapes in `RequestLoggingMiddleware`); use
+  `[LoggerMessage]` and never log request bodies, headers, tokens or query strings.
 - Errors: add a code to `ErrorCodes` and an `AppException` subclass; `GlobalExceptionHandler` shapes the response.
   Model-binding errors go through `ProblemDetailsSetup.ValidationResponse`, which is registered with `PostConfigure`
   because `AddControllers()` would otherwise overwrite it.

@@ -27,6 +27,8 @@ docker compose up --build
 
 Open <http://localhost:8080>. The first start takes a minute while SQL Server initialises; the API applies migrations, seeds 12 sample tasks and creates the two demo accounts listed in `.env`. You can also register your own account with an `@company.com` address (change `ALLOWED_EMAIL_DOMAIN` to use another domain).
 
+The stack uses a fixed Docker network, `172.30.89.0/24`, so the API can trust exactly one proxy (nginx at `172.30.89.10`) for client IP addresses. If that range clashes with a local network or VPN, change the subnet, the `web` address and `ForwardedHeaders__KnownProxies__0` in `docker-compose.yml` together. If you created the stack before this network existed, run `docker compose down` once (without `-v`, which would delete the database volume) and then `up` again.
+
 ## Run locally for development
 
 Prerequisites: .NET 8 SDK, Node 20+, and a SQL Server. The easiest SQL Server is the compose one:
