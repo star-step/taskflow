@@ -8,6 +8,11 @@
 USE TaskFlow;
 GO
 
+-- Required for writes to tables with filtered indexes (IX_Tasks_*). sqlcmd defaults this OFF.
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+GO
+
 SET IDENTITY_INSERT dbo.Tasks ON;
 
 MERGE dbo.Tasks AS target

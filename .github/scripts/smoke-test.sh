@@ -50,4 +50,8 @@ headers=$(curl -sfI "$BASE/login")
 grep -qi '^content-security-policy:' <<<"$headers" || fail "missing CSP header"
 grep -qi '^x-frame-options: DENY' <<<"$headers" || fail "missing X-Frame-Options"
 
+echo "7. An HTTP/1.0 request without a Host header still reaches the API"
+code=$(curl -s -0 -H "Host:" -o /dev/null -w '%{http_code}' "$BASE/api/tasks")
+[ "$code" = 401 ] || fail "expected 401 from the API, got $code"
+
 echo "Smoke test passed ($count tasks)."
