@@ -70,7 +70,7 @@ public sealed class ApiPipelineTests : IClassFixture<ApiFactory>
 
         Assert.Equal(HttpStatusCode.BadRequest, badEnum.StatusCode);
         var errors = (await Body(badEnum)).GetProperty("errors");
-        Assert.Equal("Priority has an invalid value.", errors.GetProperty("priority")[0].GetString());
+        Assert.Equal("Priority must be one of: Low, Medium, High, Critical.", errors.GetProperty("priority")[0].GetString());
         Assert.False(errors.TryGetProperty("request", out _));
     }
 

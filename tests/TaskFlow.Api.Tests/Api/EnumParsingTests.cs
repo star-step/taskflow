@@ -74,6 +74,21 @@ public sealed class EnumParsingTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task Errors_ReadTheSame_InQueryAndBody()
+    {
+        var client = await Client();
+
+        var query = await Body(await client.GetAsync("/api/tasks?priority=Urgent&sortBy=Nope"));
+        var body = await Body(await client.PostAsync("/api/tasks", Json("""{"title":"QA","priority":"Urgent"}""")));
+
+        const string priority = "Priority must be one of: Low, Medium, High, Critical.";
+        Assert.Equal(priority, query.GetProperty("errors").GetProperty("priority")[0].GetString());
+        Assert.Equal(priority, body.GetProperty("errors").GetProperty("priority")[0].GetString());
+        Assert.Equal("Sort by must be one of: Priority, Modified, Created, Title, Status.",
+            query.GetProperty("errors").GetProperty("sortBy")[0].GetString());
+    }
+
+    [Fact]
     public async Task Body_AcceptsNamesInAnyCase_AndResponsesUseNames()
     {
         var response = await (await Client()).PostAsync("/api/tasks", Json("""{"title":"QA case","priority":"high","status":"inprogress"}"""));

@@ -30,6 +30,11 @@ public static class StrictEnum
     }
 
     public static string AllowedNames(Type enumType) => string.Join(", ", Enum.GetNames(enumType));
+
+    /// <summary>Shared wording, completed with the field name by the binder or ProblemDetailsSetup.</summary>
+    public const string MustBeOnePrefix = "must be one of: ";
+
+    public static string MustBeOneOf(Type enumType) => $"{MustBeOnePrefix}{AllowedNames(enumType)}.";
 }
 
 /// <summary>JSON: enums read and written as names only (also as dictionary keys).</summary>
@@ -46,7 +51,7 @@ public sealed class StrictEnumConverterFactory : JsonConverterFactory
         {
             if (reader.TokenType != JsonTokenType.String)
             {
-                throw new JsonException($"Expected one of: {StrictEnum.AllowedNames(typeof(T))}.");
+                throw new JsonException(StrictEnum.MustBeOneOf(typeof(T)));
             }
 
             return Parse(reader.GetString());
@@ -64,7 +69,7 @@ public sealed class StrictEnumConverterFactory : JsonConverterFactory
         private static T Parse(string? text) =>
             StrictEnum.TryParse(typeof(T), text, out var value)
                 ? (T)value!
-                : throw new JsonException($"Expected one of: {StrictEnum.AllowedNames(typeof(T))}.");
+                : throw new JsonException(StrictEnum.MustBeOneOf(typeof(T)));
     }
 }
 
@@ -74,7 +79,19 @@ public sealed class StrictEnumModelBinderProvider : IModelBinderProvider
     public IModelBinder? GetBinder(ModelBinderProviderContext context)
     {
         var type = Nullable.GetUnderlyingType(context.Metadata.ModelType) ?? context.Metadata.ModelType;
-        return type.IsEnum ? new Binder(type) : null;
+        if (!type.IsEnum)
+        {
+            return null;
+        }
+
+        // Only values that come from the query string or route. Body, header and service-bound enums
+        // have their own binders (the body uses StrictEnumConverterFactory).
+        var source = context.BindingInfo.BindingSource;
+        var fromQueryOrRoute = source is null
+            || source == BindingSource.Query
+            || source == BindingSource.Path
+            || source == BindingSource.ModelBinding;
+        return fromQueryOrRoute ? new Binder(type) : null;
     }
 
     private sealed class Binder : IModelBinder
@@ -100,7 +117,7 @@ public sealed class StrictEnumModelBinderProvider : IModelBinderProvider
             {
                 var field = context.ModelMetadata.Name ?? context.ModelName;
                 context.ModelState.TryAddModelError(context.ModelName,
-                    $"{field} must be one of: {StrictEnum.AllowedNames(_enumType)}.");
+                    $"{FieldNames.Display(field)} {StrictEnum.MustBeOneOf(_enumType)}");
                 context.Result = ModelBindingResult.Failed();
             }
 

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using TaskFlow.Api.Infrastructure;
 
 namespace TaskFlow.Api.Errors;
 
@@ -49,9 +50,11 @@ public static class ProblemDetailsSetup
             var field = NormaliseKey(key);
             var fromJson = key.StartsWith("$", StringComparison.Ordinal);
             var messages = entry.Errors
-                .Select(e => fromJson || e.Exception is not null || string.IsNullOrEmpty(e.ErrorMessage)
-                    ? $"{Humanise(field)} has an invalid value."
-                    : e.ErrorMessage)
+                .Select(e => e.ErrorMessage.StartsWith(StrictEnum.MustBeOnePrefix, StringComparison.Ordinal)
+                    ? $"{FieldNames.Display(field)} {e.ErrorMessage}" // enum in a JSON body: same wording as the query binder
+                    : fromJson || e.Exception is not null || string.IsNullOrEmpty(e.ErrorMessage)
+                        ? $"{FieldNames.Display(field)} has an invalid value."
+                        : e.ErrorMessage)
                 .Distinct()
                 .ToArray();
             errors[field] = errors.TryGetValue(field, out var existing) ? existing.Concat(messages).Distinct().ToArray() : messages;
@@ -86,8 +89,6 @@ public static class ProblemDetailsSetup
         return JsonNamingPolicy.CamelCase.ConvertName(name);
     }
 
-    private static string Humanise(string field) =>
-        field.Length == 0 ? "Value" : char.ToUpperInvariant(field[0]) + field.Substring(1);
 
     /// <summary>Writes through IProblemDetailsService so CustomizeProblemDetails (traceId etc.) runs.</summary>
     private sealed class ProblemObjectResult : IActionResult
