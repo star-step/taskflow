@@ -1,3 +1,4 @@
+import { LIMITS } from '../../api/types';
 import { useAuth } from '../../auth/authContext';
 import { Avatar } from '../../components/Badges';
 import { BoardIcon, ListIcon, PlusIcon, SearchIcon } from '../../components/Icons';
@@ -17,7 +18,7 @@ export function AppHeader({ search, onSearch, view, onView, onNewTask, onSearchF
       <label className={`${styles.search} ${styles.topSearch}`}>
         <SearchIcon />
         <span className="visually-hidden">Search tasks</span>
-        <input type="search" placeholder="Search tasks" value={search} onChange={(e) => onSearch(e.target.value)} />
+        <input type="search" placeholder="Search tasks" value={search} maxLength={LIMITS.search} onChange={(e) => onSearch(e.target.value)} />
       </label>
       <span className={styles.spacer} />
       <button type="button" className={`${ui.iconBtn} ${styles.searchIcon}`} aria-label="Search" onClick={onSearchFocus}>

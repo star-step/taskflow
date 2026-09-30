@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { PRIORITIES, STATUSES, STATUS_LABEL, type SortBy, type SortDir, type TaskFilters, type TaskPriority, type TaskStatus } from '../../api/types';
+import { LIMITS, PRIORITIES, STATUSES, STATUS_LABEL, type SortBy, type SortDir, type TaskFilters, type TaskPriority, type TaskStatus } from '../../api/types';
 import { PriorityBars } from '../../components/Badges';
 import { priorityClass } from '../../components/badgeClasses';
 import { CloseIcon, FilterIcon, SearchIcon } from '../../components/Icons';
@@ -59,7 +59,7 @@ export function FilterBar({ filters, assignees, activeCount, searchInputRef, sea
         <label className={`${styles.search} ${styles.inlineSearch}`}>
           <SearchIcon />
           <span className="visually-hidden">Search tasks</span>
-          <input ref={searchInputRef} type="search" placeholder="Search tasks" value={search} onChange={(e) => onSearch(e.target.value)} />
+          <input ref={searchInputRef} type="search" placeholder="Search tasks" value={search} maxLength={LIMITS.search} onChange={(e) => onSearch(e.target.value)} />
         </label>
         <button type="button" className={ui.btn} onClick={onOpenSheet}>
           <FilterIcon />Filters{activeCount > 0 && <span className={ui.badge}>{activeCount}</span>}

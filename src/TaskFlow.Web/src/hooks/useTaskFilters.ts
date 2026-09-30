@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router';
-import { PRIORITIES, STATUSES, type SortBy, type SortDir, type TaskFilters, type TaskPriority, type TaskStatus } from '../api/types';
+import { LIMITS, PRIORITIES, STATUSES, type SortBy, type SortDir, type TaskFilters, type TaskPriority, type TaskStatus } from '../api/types';
 
 const SORTS: SortBy[] = ['Priority', 'Modified', 'Created', 'Title', 'Status'];
 export type View = 'list' | 'board';
@@ -17,8 +17,9 @@ export function useTaskFilters() {
     return {
       status: params.getAll('status').filter((s): s is TaskStatus => STATUSES.includes(s as TaskStatus)),
       priority: params.getAll('priority').filter((p): p is TaskPriority => PRIORITIES.includes(p as TaskPriority)),
-      assignedTo: params.get('assignee') ?? '',
-      search: params.get('q') ?? '',
+      // Clamped to the API limits so a hand-edited or old link can't make every request fail validation.
+      assignedTo: (params.get('assignee') ?? '').slice(0, LIMITS.assignedTo),
+      search: (params.get('q') ?? '').slice(0, LIMITS.search),
       sortBy: sortBy && SORTS.includes(sortBy) ? sortBy : 'Priority',
       sortDir: (params.get('dir') === 'Asc' ? 'Asc' : 'Desc') as SortDir,
     };
