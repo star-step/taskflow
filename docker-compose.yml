@@ -40,6 +40,11 @@ services:
       Seed__Users__1__DisplayName: ${DEMO_USER_2_NAME:-}
       Seed__Users__1__Password: ${DEMO_USER_2_PASSWORD:-}
       Swagger__Enabled: "false"
+      # One JSON object per log line (for log shippers); UTC timestamps, scopes included.
+      Logging__Console__FormatterName: json
+      Logging__Console__FormatterOptions__IncludeScopes: "true"
+      Logging__Console__FormatterOptions__UseUtcTimestamp: "true"
+      Logging__Console__FormatterOptions__TimestampFormat: "yyyy-MM-ddTHH:mm:ss.fffZ"
     depends_on:
       db:
         condition: service_healthy

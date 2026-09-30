@@ -718,7 +718,7 @@ Usage once built: `cp .env.example .env` → `docker compose up --build` → ope
 
 ## 11. Cross-cutting concerns
 
-- **Logging:** built-in `ILogger` with JSON console output in containers; every error log carries the `traceId` returned to the client.
+- **Logging:** built-in `ILogger`; JSON console output in Docker (`Logging__Console__FormatterName=json`). `RequestLoggingMiddleware` writes one line per request (method, path, status, elapsed ms, traceId), never query strings, headers or bodies; health probes log at Debug. The logged `traceId` is the one returned in ProblemDetails, so an error a user reports can be found in the logs.
 - **Health:** `/health/live` (no dependencies) and `/health/ready` (`AddDbContextCheck<AppDbContext>()`); compose uses `/health/ready` for the API healthcheck.
 - **OpenAPI:** Swashbuckle, enabled in Development and Docker, with XML comments and example payloads.
 - **Cancellation:** every async endpoint accepts `CancellationToken` and passes it to EF / SqlClient.
