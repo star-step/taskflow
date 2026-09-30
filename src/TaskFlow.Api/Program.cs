@@ -28,13 +28,8 @@ builder.Services.AddControllers(o => o.ModelBinderProviders.Insert(0, new Strict
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>("database", tags: new[] { "ready" });
 
-// In Docker the API sits behind nginx; trust its X-Forwarded-* headers so rate limits see the real client IP.
-builder.Services.Configure<ForwardedHeadersOptions>(o =>
-{
-    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    o.KnownNetworks.Clear();
-    o.KnownProxies.Clear();
-});
+// Honour X-Forwarded-* only from configured proxies (nginx in Docker), so rate limits see the real client IP.
+builder.Services.Configure<ForwardedHeadersOptions>(o => ForwardedHeadersSetup.Configure(o, config));
 
 var corsOrigins = config.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod()));

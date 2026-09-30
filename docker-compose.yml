@@ -40,6 +40,8 @@ services:
       Seed__Users__1__DisplayName: ${DEMO_USER_2_NAME:-}
       Seed__Users__1__Password: ${DEMO_USER_2_PASSWORD:-}
       Swagger__Enabled: "false"
+      # Trust X-Forwarded-For only from nginx (fixed address below); anyone else could spoof it.
+      ForwardedHeaders__KnownProxies__0: 172.30.89.10
       # One JSON object per log line (for log shippers); UTC timestamps, scopes included.
       Logging__Console__FormatterName: json
       Logging__Console__FormatterOptions__IncludeScopes: "true"
@@ -59,12 +61,21 @@ services:
   web:
     build:
       context: src/TaskFlow.Web
+    networks:
+      default:
+        ipv4_address: 172.30.89.10 # the only proxy the API trusts for X-Forwarded-For
     ports:
       - "8080:80"
     depends_on:
       api:
         condition: service_healthy
     restart: unless-stopped
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.89.0/24
 
 volumes:
   mssql-data:
