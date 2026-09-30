@@ -33,9 +33,12 @@ echo "4. Raw-SQL summary agrees with the list"
 total=$(curl -sf "${auth[@]}" "$BASE/api/tasks/summary" | json "['total']")
 [ "$total" = "$count" ] || fail "summary total $total != list count $count"
 
-echo "5. Create, change status, soft-delete"
-id=$(curl -sf "${auth[@]}" -H 'Content-Type: application/json' \
-  -d '{"title":"CI smoke test","priority":"Low"}' "$BASE/api/tasks" | json "['id']")
+echo "5. Create (Location header points back through the proxy), change status, soft-delete"
+created=$(curl -sf -D /tmp/create-headers.txt "${auth[@]}" -H 'Content-Type: application/json' \
+  -d '{"title":"CI smoke test","priority":"Low"}' "$BASE/api/tasks")
+id=$(json "['id']" <<<"$created")
+location=$(grep -i '^location:' /tmp/create-headers.txt | tr -d '\r' | cut -d' ' -f2)
+[ "$location" = "$BASE/api/tasks/$id" ] || fail "Location header '$location', expected '$BASE/api/tasks/$id'"
 status=$(curl -sf -X PATCH "${auth[@]}" -H 'Content-Type: application/json' \
   -d '{"status":"Done"}' "$BASE/api/tasks/$id/status" | json "['status']")
 [ "$status" = Done ] || fail "status change returned $status"
