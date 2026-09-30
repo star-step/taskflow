@@ -78,15 +78,15 @@ public sealed partial class GlobalExceptionHandler : IExceptionHandler
             case DbUpdateConcurrencyException:
                 return Problem(StatusCodes.Status409Conflict, "Conflict",
                     "The task was changed by someone else. Reload and try again.", ErrorCodes.ConcurrencyConflict);
-            case DbUpdateException { InnerException: SqlException sql } when SqlErrors.Classify(sql.Number) == SqlErrorKind.UniqueViolation:
+            case DbUpdateException { InnerException: SqlException sql } when SqlErrors.Classify(sql.Number, sql.Class) == SqlErrorKind.UniqueViolation:
                 return Problem(StatusCodes.Status409Conflict, "Conflict",
                     "A record with the same unique value already exists.", ErrorCodes.DuplicateValue);
-            case DbUpdateException { InnerException: SqlException sql } when SqlErrors.Classify(sql.Number) == SqlErrorKind.ConstraintViolation:
+            case DbUpdateException { InnerException: SqlException sql } when SqlErrors.Classify(sql.Number, sql.Class) == SqlErrorKind.ConstraintViolation:
                 return Problem(StatusCodes.Status409Conflict, "Conflict",
                     "The change conflicts with existing data.", ErrorCodes.ConstraintViolation);
             case RetryLimitExceededException:
-            case SqlException sqlError when SqlErrors.Classify(sqlError.Number) == SqlErrorKind.Transient:
-            case DbUpdateException { InnerException: SqlException inner } when SqlErrors.Classify(inner.Number) == SqlErrorKind.Transient:
+            case SqlException sqlError when SqlErrors.Classify(sqlError.Number, sqlError.Class) == SqlErrorKind.Transient:
+            case DbUpdateException { InnerException: SqlException inner } when SqlErrors.Classify(inner.Number, inner.Class) == SqlErrorKind.Transient:
                 return Problem(StatusCodes.Status503ServiceUnavailable, "Database unavailable",
                     "The database could not complete the request. Try again shortly.", ErrorCodes.DatabaseUnavailable);
             default:

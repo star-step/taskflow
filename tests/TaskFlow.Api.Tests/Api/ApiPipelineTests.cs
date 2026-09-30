@@ -89,6 +89,18 @@ public sealed class ApiPipelineTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task EmptyBody_GetsOneMessage()
+    {
+        var (client, _) = await SignedInClient();
+
+        var response = await client.PostAsync("/api/tasks", Json(""));
+
+        var errors = (await Body(response)).GetProperty("errors");
+        Assert.Equal(new[] { "A non-empty request body is required." },
+            errors.GetProperty("request").EnumerateArray().Select(e => e.GetString()));
+    }
+
+    [Fact]
     public async Task AuthResponse_ExpiresAt_IsWholeSeconds_LikeTheJwtExpClaim()
     {
         var register = await _factory.CreateClient().PostAsync("/api/auth/register",

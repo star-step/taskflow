@@ -43,14 +43,16 @@ public static class ProblemDetailsSetup
             .Where(kv => kv.Value is { ValidationState: ModelValidationState.Invalid, Errors.Count: > 0 })
             .Select(kv => (kv.Key, Entry: kv.Value!))
             .ToList();
-        var hasJsonError = invalid.Any(i => i.Key.StartsWith("$", StringComparison.Ordinal));
+        // Broken or missing body: the formatter's own error says it all.
+        var hasJsonError = invalid.Any(i => i.Key.StartsWith("$", StringComparison.Ordinal)
+            || i.Entry.Errors.Any(e => e.ErrorMessage.StartsWith("A non-empty request body is required", StringComparison.Ordinal)));
 
         var errors = new Dictionary<string, List<string>>();
         foreach (var (key, entry) in invalid)
         {
             var fromJson = key.StartsWith("$", StringComparison.Ordinal);
 
-            // A body that failed to deserialise also leaves MVC's "The <parameter> field is required."
+            // A body that failed to deserialise (or was empty) also leaves MVC's "The <parameter> field is required."
             // on the parameter itself; it adds nothing to the JSON error, so drop it.
             if (hasJsonError && !fromJson && entry.Errors.All(e => e.ErrorMessage.EndsWith("field is required.", StringComparison.Ordinal)))
             {

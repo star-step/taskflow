@@ -378,10 +378,11 @@ Implemented with .NET 8's `IExceptionHandler` + `AddProblemDetails()`, returning
 | `EmailDomainNotAllowedException` | 403 | `EMAIL_DOMAIN_NOT_ALLOWED` |
 | `EmailAlreadyRegisteredException` | 409 | `EMAIL_TAKEN` |
 | `InvalidCredentialsException` | 401 | `INVALID_CREDENTIALS` (also while locked out) |
+| `AccountNotFoundException` (valid token, user no longer exists) | 401 | `UNAUTHENTICATED` |
 | `DbUpdateConcurrencyException` | 409 | `CONCURRENCY_CONFLICT` |
 | `DbUpdateException` from a unique index (SQL 2601/2627) | 409 | `DUPLICATE_VALUE` |
 | `DbUpdateException` from a CHECK/FOREIGN KEY constraint (SQL 547) | 409 | `CONSTRAINT_VIOLATION` |
-| Transient SQL errors (timeouts, connection failures, deadlocks) or EF retries exhausted | 503 | `DATABASE_UNAVAILABLE` |
+| Transient SQL errors (server unreachable or refusing connections, timeouts, deadlocks, any severity ≥ 20) or EF retries exhausted | 503 | `DATABASE_UNAVAILABLE` |
 | anything else | 500 | `UNEXPECTED_ERROR` — `detail` is generic outside Development; full exception is logged with the `traceId` |
 
 401/403 from the auth middleware are also shaped as ProblemDetails via `UseStatusCodePages` so the front end parses one format.

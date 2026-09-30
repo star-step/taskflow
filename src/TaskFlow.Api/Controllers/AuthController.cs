@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.JsonWebTokens;
+using TaskFlow.Api.Errors;
 using TaskFlow.Api.Infrastructure;
 using TaskFlow.Api.Services;
 using TaskFlow.Shared.Contracts.Auth;
@@ -65,8 +66,9 @@ public sealed class AuthController : ControllerBase
             _cookie.Set(Response, result.RefreshToken, result.RefreshExpiresAt);
             return Ok(result.Response);
         }
-        catch
+        catch (InvalidRefreshTokenException)
         {
+            // Only a token that is definitely invalid ends the session; a database outage (503) keeps it.
             // The exception handler clears the response (headers included) before writing the error, so a
             // cookie deleted here directly would be lost. OnStarting runs after that, as the 401 is sent.
             Response.OnStarting(() =>
