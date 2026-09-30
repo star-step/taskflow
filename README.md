@@ -31,7 +31,7 @@ The stack uses a fixed Docker network, `172.30.89.0/24`, so the API can trust ex
 
 ## Run locally for development
 
-Prerequisites: .NET 8 SDK, Node 20+, and a SQL Server. The easiest SQL Server is the compose one:
+Prerequisites: .NET 8 SDK, Node 22 (see `src/TaskFlow.Web/.nvmrc`; Docker and CI use it too), and a SQL Server. The easiest SQL Server is the compose one:
 
 ```bash
 docker compose up -d db
