@@ -384,6 +384,8 @@ Implemented with .NET 8's `IExceptionHandler` + `AddProblemDetails()`, returning
 | `DbUpdateException` from a CHECK/FOREIGN KEY constraint (SQL 547) | 409 | `CONSTRAINT_VIOLATION` |
 | Transient SQL errors (server unreachable or refusing connections, timeouts, deadlocks, any severity ≥ 20) or EF retries exhausted | 503 | `DATABASE_UNAVAILABLE` |
 | anything else | 500 | `UNEXPECTED_ERROR` — `detail` is generic outside Development; full exception is logged with the `traceId` |
+| *nginx:* request body over 1 MB | 413 | `PAYLOAD_TOO_LARGE` |
+| *nginx:* API unreachable or timing out (502/503/504 from the proxy) | 503 + `Retry-After` | `API_UNAVAILABLE` |
 
 401/403 from the auth middleware are also shaped as ProblemDetails via `UseStatusCodePages` so the front end parses one format.
 
@@ -685,7 +687,7 @@ Run: `dotnet test --filter "Category!=Integration"` · `dotnet test --filter Cat
 | `web` | built from `src/TaskFlow.Web/Dockerfile` | Unprivileged nginx (uid 101) listening on 8080, with a fixed address `172.30.89.10`; the only service published on all interfaces (`8080:8080`); health check on `/`; starts after `api` is healthy |
 
 - **API image:** multi-stage. `mcr.microsoft.com/dotnet/sdk:8.0` restores with `--locked-mode` (NuGet lock files) and publishes; `mcr.microsoft.com/dotnet/aspnet:8.0` runs it as the built-in non-root `app` user on port 8080. The build context is the repository root so `TaskFlow.Shared` is included.
-- **Web image:** `node:22-alpine` runs `npm ci && npm run build`; `nginxinc/nginx-unprivileged:1.27-alpine` (non-root, port 8080) serves `dist/` with SPA fallback, long-lived caching for hashed assets, security headers (CSP, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy), and proxies `/api/` to `http://api:8080`, forwarding the client's `Host` with its port (falling back to `localhost` when a client sends none).
+- **Web image:** `node:22-alpine` runs `npm ci && npm run build`; `nginxinc/nginx-unprivileged:1.27-alpine` (non-root, port 8080) serves `dist/` with SPA fallback, long-lived caching for hashed assets, security headers (CSP, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy), and proxies `/api/` to `http://api:8080`, forwarding the client's `Host` with its port (falling back to `localhost` when a client sends none). `/health/` is proxied to the API too. Errors nginx generates itself (413, and 502/503/504 when the API can't be reached within a 5 s connect timeout) are returned as ProblemDetails JSON with an `errorCode` and nginx's request id as `traceId`; the API's own error responses pass through unchanged.
 - **Migrations:** applied on API startup when `Database__MigrateOnStartup=true`, with a short retry loop. For real deployments, an EF migration bundle run as a pipeline step is preferred.
 - **Fixed subnet:** the pinned nginx address is what lets the API trust exactly one proxy. If `172.30.89.0/24` clashes with a local network or VPN, change the subnet, the `web` address and `ForwardedHeaders__KnownProxies__0` together. A stack created before this network existed needs one `docker compose down` (without `-v`, so data is kept) before `up`.
 

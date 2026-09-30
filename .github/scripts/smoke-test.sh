@@ -54,4 +54,15 @@ echo "7. An HTTP/1.0 request without a Host header still reaches the API"
 code=$(curl -s -0 -H "Host:" -o /dev/null -w '%{http_code}' "$BASE/api/tasks")
 [ "$code" = 401 ] || fail "expected 401 from the API, got $code"
 
+echo "8. A body over nginx's 1 MB limit gets a JSON problem, not an HTML error page"
+head -c 2000000 /dev/zero | tr '\0' 'x' > /tmp/big-body.txt
+code=$(curl -s -o /tmp/too-large.json -w '%{http_code} %{content_type}' -X POST "${auth[@]}" \
+  -H 'Content-Type: application/json' --data-binary @/tmp/big-body.txt "$BASE/api/tasks")
+[ "$code" = "413 application/problem+json" ] || fail "expected '413 application/problem+json', got '$code'"
+[ "$(json "['errorCode']" < /tmp/too-large.json)" = PAYLOAD_TOO_LARGE ] || fail "413 body lacks errorCode"
+
+echo "9. Health checks are proxied to the API"
+health=$(curl -s -w ' %{http_code}' "$BASE/health/ready")
+[ "$health" = "Healthy 200" ] || fail "expected 'Healthy 200' from /health/ready, got '${health:0:60}'"
+
 echo "Smoke test passed ($count tasks)."
