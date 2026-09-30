@@ -1,5 +1,7 @@
 # TaskFlow
 
+[![CI](https://github.com/star-step/taskflow/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/star-step/taskflow/actions/workflows/ci.yml)
+
 A lightweight task manager for an internal team: a .NET 8 REST API on SQL Server, and a responsive React front end.
 
 - **API:** list with filtering and sorting, get, create, update, change status, soft delete, and a raw-SQL summary.
@@ -70,6 +72,8 @@ Raw-SQL summary against a real SQL Server in a throwaway container (needs Docker
 ```bash
 dotnet test --filter Category=Integration
 ```
+
+CI (`.github/workflows/ci.yml`) runs all of this on every push and pull request: .NET build and unit tests with coverage, web type-check/lint/test/build, the SQL Server integration test, and a Docker Compose build with an end-to-end smoke test (`.github/scripts/smoke-test.sh`).
 
 React unit tests:
 
