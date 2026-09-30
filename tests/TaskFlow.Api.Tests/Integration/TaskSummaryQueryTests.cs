@@ -10,7 +10,7 @@ namespace TaskFlow.Api.Tests.Integration;
 
 /// <summary>
 /// Runs the raw GROUPING SETS summary against a real SQL Server in Docker, after applying the real
-/// migrations. Skipped when Docker isn't available. Run only these with:
+/// migrations. Skipped when Docker isn't available, except in CI where it fails. Run only these with:
 /// dotnet test --filter Category=Integration
 /// </summary>
 [Trait("Category", "Integration")]
@@ -26,7 +26,9 @@ public sealed class TaskSummaryQueryTests : IAsyncLifetime
             _sql = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build();
             await _sql.StartAsync();
         }
-        catch (Exception ex)
+        // Locally, no Docker means skip. In CI (GitHub Actions sets CI=true) a missing Docker must fail the
+        // run, otherwise a broken runner would pass with this test silently skipped.
+        catch (Exception ex) when (!string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
         {
             _skipReason = $"Docker/SQL Server not available: {ex.GetType().Name}";
         }
