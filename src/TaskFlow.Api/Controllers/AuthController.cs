@@ -67,7 +67,13 @@ public sealed class AuthController : ControllerBase
         }
         catch
         {
-            _cookie.Clear(Response);
+            // The exception handler clears the response (headers included) before writing the error, so a
+            // cookie deleted here directly would be lost. OnStarting runs after that, as the 401 is sent.
+            Response.OnStarting(() =>
+            {
+                _cookie.Clear(Response);
+                return Task.CompletedTask;
+            });
             throw;
         }
     }

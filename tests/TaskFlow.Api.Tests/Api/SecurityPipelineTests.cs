@@ -72,6 +72,37 @@ public sealed class SecurityPipelineTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task FailedRefresh_DeletesTheRefreshCookie()
+    {
+        var client = _factory.CreateClient(new() { HandleCookies = false });
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/refresh");
+        request.Headers.Add("X-TaskFlow-Client", "web");
+        request.Headers.Add("Cookie", "tf_refresh=not-a-real-token");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        var cookie = Assert.Single(response.Headers.GetValues("Set-Cookie"), c => c.StartsWith("tf_refresh=", StringComparison.Ordinal));
+        Assert.Contains("expires=Thu, 01 Jan 1970", cookie, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("path=/api/auth", cookie, StringComparison.OrdinalIgnoreCase);
+        var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+        Assert.Equal("INVALID_REFRESH_TOKEN", body.GetProperty("errorCode").GetString());
+    }
+
+    [Fact]
+    public async Task Me_WithValidTokenForMissingUser_IsUnauthenticated_NotSessionExpired()
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token(sub: "987654"));
+
+        var response = await client.GetAsync("/api/auth/me");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+        Assert.Equal("UNAUTHENTICATED", body.GetProperty("errorCode").GetString());
+    }
+
+    [Fact]
     public async Task Login_IsRateLimited_WithRetryAfter()
     {
         var client = _factory.CreateClient();

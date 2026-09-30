@@ -46,6 +46,16 @@ public sealed class InvalidRefreshTokenException : AppException
     }
 }
 
+/// <summary>A valid access token whose user no longer exists (e.g. the account was removed).</summary>
+public sealed class AccountNotFoundException : AppException
+{
+    public AccountNotFoundException()
+        : base(StatusCodes.Status401Unauthorized, ErrorCodes.Unauthenticated, "Account not found",
+            "Your account could not be found. Sign in again.")
+    {
+    }
+}
+
 public sealed class ClientHeaderMissingException : AppException
 {
     public ClientHeaderMissingException(string header)

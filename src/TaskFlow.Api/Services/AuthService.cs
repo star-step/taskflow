@@ -159,7 +159,7 @@ public sealed class AuthService : IAuthService
     public async Task<UserResponse> GetUserAsync(int userId, CancellationToken ct = default)
     {
         var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId, ct)
-            ?? throw new InvalidRefreshTokenException();
+            ?? throw new AccountNotFoundException();
         return ToUserResponse(user);
     }
 
