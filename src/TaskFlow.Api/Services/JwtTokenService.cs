@@ -24,7 +24,9 @@ public sealed class JwtTokenService : ITokenService
 
     public (string Token, DateTime ExpiresAt) CreateAccessToken(AppUser user)
     {
-        var now = _time.GetUtcNow().UtcDateTime;
+        // Whole seconds: the JWT exp claim has second precision, so expiresAt in the response matches it exactly.
+        var utc = _time.GetUtcNow().UtcDateTime;
+        var now = new DateTime(utc.Ticks - (utc.Ticks % TimeSpan.TicksPerSecond), DateTimeKind.Utc);
         var expires = now.AddMinutes(_options.AccessTokenMinutes);
 
         var token = _handler.CreateToken(new SecurityTokenDescriptor

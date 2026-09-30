@@ -116,6 +116,7 @@ public sealed class SecurityPipelineTests : IClassFixture<ApiFactory>
         Assert.True(int.Parse(last.Headers.GetValues("Retry-After").Single()) > 0);
         var body = JsonDocument.Parse(await last.Content.ReadAsStringAsync()).RootElement;
         Assert.Equal("RATE_LIMITED", body.GetProperty("errorCode").GetString());
+        Assert.Equal("https://tools.ietf.org/html/rfc6585#section-4", body.GetProperty("type").GetString());
     }
 
     [Fact]

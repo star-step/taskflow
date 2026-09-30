@@ -75,6 +75,32 @@ public sealed class ApiPipelineTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task MalformedJson_GetsOneClearMessage()
+    {
+        var (client, _) = await SignedInClient();
+
+        var response = await client.PostAsync("/api/tasks", Json("""{"title": "unterminated"""));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var errors = (await Body(response)).GetProperty("errors");
+        Assert.Equal(new[] { "request" }, errors.EnumerateObject().Select(p => p.Name));
+        Assert.Equal(new[] { "The request body is not valid JSON." },
+            errors.GetProperty("request").EnumerateArray().Select(e => e.GetString()));
+    }
+
+    [Fact]
+    public async Task AuthResponse_ExpiresAt_IsWholeSeconds_LikeTheJwtExpClaim()
+    {
+        var register = await _factory.CreateClient().PostAsync("/api/auth/register",
+            Json($$"""{"displayName":"Expiry Check","email":"exp{{Guid.NewGuid():N}}@company.com","password":"harbour-lantern-47"}"""));
+
+        var expiresAt = (await Body(register)).GetProperty("expiresAt").GetString()!;
+
+        Assert.EndsWith("Z", expiresAt);
+        Assert.DoesNotContain(".", expiresAt);
+    }
+
+    [Fact]
     public async Task TaskLifecycle_CreatePatchDelete()
     {
         var (client, _) = await SignedInClient();

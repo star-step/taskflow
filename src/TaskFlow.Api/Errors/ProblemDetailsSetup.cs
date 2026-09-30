@@ -18,7 +18,7 @@ public static class ProblemDetailsSetup
         {
             var problem = ctx.ProblemDetails;
             problem.Instance ??= ctx.HttpContext.Request.Path;
-            problem.Type ??= $"https://httpstatuses.io/{problem.Status}";
+            problem.Type ??= "about:blank"; // RFC 9457 default; statuses the framework knows get an RFC 9110 link
             problem.Extensions["traceId"] = Activity.Current?.Id ?? ctx.HttpContext.TraceIdentifier;
             if (!problem.Extensions.ContainsKey("errorCode"))
             {
@@ -39,34 +39,40 @@ public static class ProblemDetailsSetup
     /// </summary>
     private static IActionResult ValidationResponse(ActionContext context)
     {
-        var errors = new Dictionary<string, string[]>();
-        foreach (var (key, entry) in context.ModelState)
+        var invalid = context.ModelState
+            .Where(kv => kv.Value is { ValidationState: ModelValidationState.Invalid, Errors.Count: > 0 })
+            .Select(kv => (kv.Key, Entry: kv.Value!))
+            .ToList();
+        var hasJsonError = invalid.Any(i => i.Key.StartsWith("$", StringComparison.Ordinal));
+
+        var errors = new Dictionary<string, List<string>>();
+        foreach (var (key, entry) in invalid)
         {
-            if (entry.ValidationState != ModelValidationState.Invalid || entry.Errors.Count == 0)
+            var fromJson = key.StartsWith("$", StringComparison.Ordinal);
+
+            // A body that failed to deserialise also leaves MVC's "The <parameter> field is required."
+            // on the parameter itself; it adds nothing to the JSON error, so drop it.
+            if (hasJsonError && !fromJson && entry.Errors.All(e => e.ErrorMessage.EndsWith("field is required.", StringComparison.Ordinal)))
             {
                 continue;
             }
 
-            var field = NormaliseKey(key);
-            var fromJson = key.StartsWith("$", StringComparison.Ordinal);
-            var messages = entry.Errors
-                .Select(e => e.ErrorMessage.StartsWith(StrictEnum.MustBeOnePrefix, StringComparison.Ordinal)
-                    ? $"{FieldNames.Display(field)} {e.ErrorMessage}" // enum in a JSON body: same wording as the query binder
-                    : fromJson || e.Exception is not null || string.IsNullOrEmpty(e.ErrorMessage)
-                        ? $"{FieldNames.Display(field)} has an invalid value."
-                        : e.ErrorMessage)
-                .Distinct()
-                .ToArray();
-            errors[field] = errors.TryGetValue(field, out var existing) ? existing.Concat(messages).Distinct().ToArray() : messages;
+            foreach (var error in entry.Errors)
+            {
+                var (field, message) = Describe(NormaliseKey(key), fromJson, error);
+                if (!errors.TryGetValue(field, out var list))
+                {
+                    errors[field] = list = new List<string>();
+                }
+
+                if (!list.Contains(message))
+                {
+                    list.Add(message);
+                }
+            }
         }
 
-        // When the body itself can't be parsed, MVC also adds a generic "request field is required" error.
-        if (errors.Count > 1)
-        {
-            errors.Remove("request");
-        }
-
-        var problem = new ValidationProblemDetails(errors)
+        var problem = new ValidationProblemDetails(errors.ToDictionary(kv => kv.Key, kv => kv.Value.ToArray()))
         {
             Status = StatusCodes.Status400BadRequest,
             Title = "Validation failed",
@@ -76,6 +82,26 @@ public static class ProblemDetailsSetup
 
         var problemService = context.HttpContext.RequestServices.GetRequiredService<IProblemDetailsService>();
         return new ProblemObjectResult(problem, problemService);
+    }
+
+    /// <summary>Picks the field and wording for one model-state error.</summary>
+    private static (string Field, string Message) Describe(string field, bool fromJson, ModelError error)
+    {
+        var message = error.ErrorMessage;
+        if (message.StartsWith(StrictEnum.MustBeOnePrefix, StringComparison.Ordinal))
+        {
+            return (field, $"{FieldNames.Display(field)} {message}"); // same wording as the query binder
+        }
+
+        if (fromJson && !message.StartsWith("The JSON value could not be converted", StringComparison.Ordinal))
+        {
+            // Not a wrong type for a field but broken JSON syntax; its path only says where parsing stopped.
+            return ("request", "The request body is not valid JSON.");
+        }
+
+        return fromJson || error.Exception is not null || string.IsNullOrEmpty(message)
+            ? (field, $"{FieldNames.Display(field)} has an invalid value.")
+            : (field, message);
     }
 
     private static string NormaliseKey(string key)

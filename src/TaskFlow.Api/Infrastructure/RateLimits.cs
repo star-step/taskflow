@@ -39,6 +39,7 @@ public static class RateLimits
 
                 var problem = new ProblemDetails
                 {
+                    Type = "https://tools.ietf.org/html/rfc6585#section-4", // 429 is defined in RFC 6585, not RFC 9110
                     Status = StatusCodes.Status429TooManyRequests,
                     Title = "Too many attempts",
                     Detail = seconds >= 60
