@@ -58,8 +58,10 @@ before changing behaviour); UI reference: `docs/mockups/index.html`. Path-scoped
 
 1. Plan before code: state the change, the files it touches and how it will be verified. Update `docs/ARCHITECTURE.md`
    when a decision changes.
-2. Work in small steps. After each step, run the build and the relevant tests (plus `docker compose` and a browser
-   check for UI or wiring changes).
-3. One commit per validated step, with an imperative subject and a body that says why. Never commit a red build,
-   `.env` or build output.
+2. Work in small steps. After every change, run `dotnet build`, the relevant tests and
+   `npm --prefix src/TaskFlow.Web run typecheck`. Add `docker compose` and a browser check for UI or wiring changes.
+3. Commit immediately after each validated change. Don't batch several changes into one commit. Use an imperative
+   subject; the body says why, and ends with a `Verified:` line listing exactly what was run and its result
+   (e.g. `Verified: dotnet build; dotnet test --filter "Category!=Integration" (51 passed); npm run typecheck`).
+   Never commit a red build, `.env` or build output.
 4. Report results honestly: say what was run and what wasn't.
