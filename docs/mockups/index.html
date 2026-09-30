@@ -805,13 +805,13 @@
       endpoints: [['POST', '/api/auth/login'], ['POST', '/api/auth/refresh'], ['POST', '/api/auth/logout']],
       notes: [
         'Desktop splits into a brand panel and the form; tablet and phone drop the panel and centre the form on a card.',
-        'A wrong email and a wrong password show the same message, so the form doesn\'t reveal which emails have accounts. After 5 failures the account locks for 15 minutes and the message says when to try again.',
+        'Every failure (unknown email, wrong password, locked account) shows the same message, so the form doesn\'t reveal which emails have accounts. After 5 failures the account pauses sign-in for 15 minutes.',
         'On load the app quietly calls /refresh; if the cookie is still valid, this page is skipped.',
         'If a session expires mid-task, the user lands here and returns to the same view after signing in. Sign out is in the avatar menu.'
       ],
       html: () => authShell(`
               <div><h1>Sign in</h1><p class="lead">Use your work email.</p></div>
-              <div class="form-alert" role="alert">${I.alert}<span>Email or password is incorrect. 3 attempts left before the account is locked for 15 minutes.</span></div>
+              <div class="form-alert" role="alert">${I.alert}<span>Email or password is incorrect. After several failed attempts, sign-in is paused for 15 minutes.</span></div>
               <div class="field"><label for="em">Email</label><input class="input" id="em" type="email" autocomplete="username" placeholder="name@company.com" value="alex.morgan@company.com"></div>
               <div class="field"><label for="pw">Password</label><div class="pw"><input class="input" id="pw" type="password" autocomplete="current-password" value="" placeholder="Your password"><button type="button" class="icon-btn" aria-label="Show password">${I.eye}</button></div></div>
               <button class="btn btn--primary btn--block" type="submit">Sign in</button>

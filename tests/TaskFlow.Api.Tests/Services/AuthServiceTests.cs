@@ -68,40 +68,51 @@ public sealed class AuthServiceTests : IAsyncLifetime
         Assert.Contains(message, ex.Errors!["password"]);
     }
 
+    private Task<InvalidCredentialsException> FailedLogin(string email, string password) =>
+        Assert.ThrowsAsync<InvalidCredentialsException>(() =>
+            WithAuth(a => a.LoginAsync(new LoginRequest { Email = email, Password = password })));
+
     [Fact]
-    public async Task LoginAsync_UnknownEmailAndWrongPassword_ShareOneMessage()
+    public async Task LoginAsync_EveryFailure_LooksIdentical()
     {
+        // An unknown email, each wrong password, and a locked account must be indistinguishable,
+        // or the response reveals which emails have accounts.
         await Register();
+        var unknown = await FailedLogin("nobody@company.com", Password);
 
-        var unknown = await Assert.ThrowsAsync<InvalidCredentialsException>(() =>
-            WithAuth(a => a.LoginAsync(new LoginRequest { Email = "nobody@company.com", Password = Password })));
-        var wrong = await Assert.ThrowsAsync<InvalidCredentialsException>(() =>
-            WithAuth(a => a.LoginAsync(new LoginRequest { Email = "jordan.ellis@company.com", Password = "not-the-password" })));
+        var failures = new List<InvalidCredentialsException>();
+        for (var i = 0; i < 5; i++)
+        {
+            failures.Add(await FailedLogin("jordan.ellis@company.com", "not-the-password"));
+        }
 
+        failures.Add(await FailedLogin("jordan.ellis@company.com", Password)); // locked now, right password
+
+        Assert.All(failures, f =>
+        {
+            Assert.Equal(unknown.ErrorCode, f.ErrorCode);
+            Assert.Equal(unknown.Message, f.Message);
+            Assert.Equal(unknown.StatusCode, f.StatusCode);
+        });
         Assert.Equal(ErrorCodes.InvalidCredentials, unknown.ErrorCode);
-        Assert.Equal(ErrorCodes.InvalidCredentials, wrong.ErrorCode);
-        Assert.StartsWith("Email or password is incorrect.", wrong.Message);
+        Assert.DoesNotMatch(@"\d+\s+attempts?\s+left", unknown.Message); // no per-account countdown
     }
 
     [Fact]
     public async Task LoginAsync_FiveWrongPasswords_LocksAccount()
     {
         await Register();
-        var bad = new LoginRequest { Email = "jordan.ellis@company.com", Password = "not-the-password" };
 
-        for (var i = 0; i < 4; i++)
+        for (var i = 0; i < 5; i++)
         {
-            var ex = await Assert.ThrowsAsync<InvalidCredentialsException>(() => WithAuth(a => a.LoginAsync(bad)));
-            Assert.Equal(ErrorCodes.InvalidCredentials, ex.ErrorCode);
+            await FailedLogin("jordan.ellis@company.com", "not-the-password");
         }
 
-        var fifth = await Assert.ThrowsAsync<InvalidCredentialsException>(() => WithAuth(a => a.LoginAsync(bad)));
-        Assert.Equal(ErrorCodes.LockedOut, fifth.ErrorCode);
-
-        // Even the right password is refused while locked.
-        var locked = await Assert.ThrowsAsync<InvalidCredentialsException>(() =>
-            WithAuth(a => a.LoginAsync(new LoginRequest { Email = bad.Email, Password = Password })));
-        Assert.Equal(ErrorCodes.LockedOut, locked.ErrorCode);
+        // Locked: even the right password is refused, and the account really is locked.
+        await FailedLogin("jordan.ellis@company.com", Password);
+        await using var scope = _host.Scope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+        Assert.True(await users.IsLockedOutAsync((await users.FindByEmailAsync("jordan.ellis@company.com"))!));
     }
 
     [Fact]

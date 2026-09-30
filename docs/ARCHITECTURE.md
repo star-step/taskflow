@@ -370,7 +370,7 @@ Implemented with .NET 8's `IExceptionHandler` + `AddProblemDetails()`, returning
 | Identity password / user validation failures on register | 400 | `VALIDATION_FAILED` (Identity error codes mapped onto `email` / `password` fields) |
 | `EmailDomainNotAllowedException` | 403 | `EMAIL_DOMAIN_NOT_ALLOWED` |
 | `EmailAlreadyRegisteredException` | 409 | `EMAIL_TAKEN` |
-| `InvalidCredentialsException` | 401 | `INVALID_CREDENTIALS` / `LOCKED_OUT` |
+| `InvalidCredentialsException` | 401 | `INVALID_CREDENTIALS` (also while locked out) |
 | `DbUpdateConcurrencyException` | 409 | `CONCURRENCY_CONFLICT` |
 | `SqlException` (transient / unavailable) | 503 | `DATABASE_UNAVAILABLE` |
 | anything else | 500 | `UNEXPECTED_ERROR` — `detail` is generic outside Development; full exception is logged with the `traceId` |
@@ -513,8 +513,8 @@ sequenceDiagram
 | **Rotation + reuse detection** | Each refresh revokes the used token and issues a new one in the same family. If an already-revoked token is presented (it has been stolen and replayed), the whole family is revoked and the user must sign in again. |
 | **Page reload** | The in-memory access token is lost; on start-up the SPA calls `POST /api/auth/refresh` once. The cookie restores the session, or the user sees the sign-in page. |
 | **CSRF** | The cookie is `SameSite=Strict` and scoped to `/api/auth`. `/refresh` and `/logout` also require the header `X-TaskFlow-Client: web`, which a cross-site form can't send. Task endpoints use the bearer header, not cookies, so they aren't exposed to CSRF. |
-| **Lockout** | 5 failed passwords → locked for 15 minutes (Identity lockout). Login returns `401 LOCKED_OUT` with the unlock time. |
-| **Wrong credentials** | Same `401 INVALID_CREDENTIALS` message for an unknown email and a wrong password. The unknown-email path still runs a hash comparison, so response times don't reveal which one it was. For the last 3 attempts before lockout, the message adds how many are left (as in the mockup). That does hint that the account exists; accepted for an internal tool, and easy to remove in `InvalidCredentialsException.Wrong`. |
+| **Lockout** | 5 failed passwords → locked for 15 minutes (Identity lockout). While locked, login returns the *same* `401 INVALID_CREDENTIALS` as any other failure (no unlock time, no separate code) and still runs a hash check, so a caller can't tell a locked account from a wrong password or unknown email. Trade-off: anyone who knows a colleague's email can lock them out for 15 minutes; the per-IP login rate limit slows this, and per-account throttling or CAPTCHA would be the next step if it becomes a problem. |
+| **Wrong credentials** | One response for every failure: `401 INVALID_CREDENTIALS`, "Email or password is incorrect. After several failed attempts, sign-in is paused for 15 minutes." There's no attempts-left count (it would reveal that the account exists). Unknown emails and locked accounts still run a hash comparison, so response times don't reveal which case it was. |
 | **Rate limits** | Login 10 / min / IP; register 5 / 10 min / IP; refresh 30 / min / IP. Exceeding them returns `429` with `Retry-After`. |
 | **Sign out** | Revokes the current refresh token and expires the cookie. Access tokens are not tracked, so an already-issued one stays valid for at most 15 minutes. That's why its lifetime is short. |
 | **Password change** | Not in the UI for v1. When it's added, it updates `SecurityStamp`, which invalidates every refresh token for that user. |

@@ -1,20 +1,17 @@
 namespace TaskFlow.Api.Errors;
 
+/// <summary>
+/// The one response for every failed sign-in: unknown email, wrong password, or locked account.
+/// Anything that differed between those cases (an attempts-left count, a LOCKED_OUT code, an unlock
+/// time) would tell a caller which emails have accounts.
+/// </summary>
 public sealed class InvalidCredentialsException : AppException
 {
-    private InvalidCredentialsException(string code, string detail)
-        : base(StatusCodes.Status401Unauthorized, code, "Sign-in failed", detail)
+    public InvalidCredentialsException()
+        : base(StatusCodes.Status401Unauthorized, ErrorCodes.InvalidCredentials, "Sign-in failed",
+            "Email or password is incorrect. After several failed attempts, sign-in is paused for 15 minutes.")
     {
     }
-
-    /// <summary>Same message for an unknown email and a wrong password, so neither is revealed.</summary>
-    public static InvalidCredentialsException Wrong(int? attemptsLeft) => new(ErrorCodes.InvalidCredentials,
-        attemptsLeft is > 0 and <= 3
-            ? $"Email or password is incorrect. {attemptsLeft} attempt{(attemptsLeft == 1 ? "" : "s")} left before the account is locked for a while."
-            : "Email or password is incorrect.");
-
-    public static InvalidCredentialsException LockedOut(DateTimeOffset until) => new(ErrorCodes.LockedOut,
-        $"Too many failed attempts. Try again after {until.UtcDateTime:HH:mm} UTC.");
 }
 
 public sealed class EmailAlreadyRegisteredException : AppException

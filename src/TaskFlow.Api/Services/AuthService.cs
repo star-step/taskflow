@@ -70,30 +70,27 @@ public sealed class AuthService : IAuthService
 
     public async Task<AuthResult> LoginAsync(LoginRequest request, CancellationToken ct = default)
     {
+        // Every failure path below does one password-hash verification and throws the same exception,
+        // so neither the response nor its timing reveals whether the email exists or is locked.
         var user = await _users.FindByEmailAsync(request.Email.Trim());
         if (user is null)
         {
-            // Spend the same time as a real password check so response times don't reveal unknown emails.
             _dummyHash ??= _hasher.HashPassword(DummyUser, Guid.NewGuid().ToString());
             _hasher.VerifyHashedPassword(DummyUser, _dummyHash, request.Password);
-            throw InvalidCredentialsException.Wrong(attemptsLeft: null);
+            throw new InvalidCredentialsException();
         }
 
         if (await _users.IsLockedOutAsync(user))
         {
-            throw InvalidCredentialsException.LockedOut(user.LockoutEnd!.Value);
+            // Refused without counting another failure, but still pay for a hash check.
+            _hasher.VerifyHashedPassword(user, user.PasswordHash ?? string.Empty, request.Password);
+            throw new InvalidCredentialsException();
         }
 
         if (!await _users.CheckPasswordAsync(user, request.Password))
         {
             await _users.AccessFailedAsync(user);
-            if (await _users.IsLockedOutAsync(user))
-            {
-                throw InvalidCredentialsException.LockedOut(user.LockoutEnd!.Value);
-            }
-
-            var attemptsLeft = _users.Options.Lockout.MaxFailedAccessAttempts - await _users.GetAccessFailedCountAsync(user);
-            throw InvalidCredentialsException.Wrong(attemptsLeft);
+            throw new InvalidCredentialsException();
         }
 
         await _users.ResetAccessFailedCountAsync(user);

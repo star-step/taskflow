@@ -13,7 +13,6 @@ public static class ErrorCodes
     public const string Forbidden = "FORBIDDEN";
     public const string RateLimited = "RATE_LIMITED";
     public const string InvalidCredentials = "INVALID_CREDENTIALS";
-    public const string LockedOut = "LOCKED_OUT";
     public const string EmailTaken = "EMAIL_TAKEN";
     public const string EmailDomainNotAllowed = "EMAIL_DOMAIN_NOT_ALLOWED";
     public const string InvalidRefreshToken = "INVALID_REFRESH_TOKEN";
