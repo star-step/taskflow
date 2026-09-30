@@ -1,0 +1,148 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
+
+jobs:
+  dotnet:
+    name: .NET build, unit tests and coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+
+      - name: Restore (locked)
+        run: dotnet restore --locked-mode
+
+      - name: Build (warnings as errors)
+        run: dotnet build --no-restore --configuration Release -warnaserror
+
+      - name: Unit and HTTP pipeline tests with coverage
+        run: >
+          dotnet test --no-build --configuration Release
+          --filter "Category!=Integration"
+          --settings coverage.runsettings --collect "XPlat Code Coverage"
+          --logger trx --results-directory TestResults
+
+      - name: Coverage summary
+        if: always()
+        run: python3 .github/scripts/coverage_summary.py TestResults >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test results and coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dotnet-test-results
+          path: TestResults
+          retention-days: 14
+
+  web:
+    name: Web typecheck, lint, test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: src/TaskFlow.Web
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/TaskFlow.Web/package-lock.json
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  integration:
+    name: SQL Server integration tests (Testcontainers)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: dotnet
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+
+      - name: Restore (locked)
+        run: dotnet restore --locked-mode
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release -warnaserror
+
+      # Docker is available on ubuntu-latest. CI=true makes a missing Docker a failure, not a skip.
+      - name: Integration tests against SQL Server 2022
+        run: >
+          dotnet test tests/TaskFlow.Api.Tests --no-build --configuration Release
+          --filter "Category=Integration"
+          --logger trx --results-directory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-results
+          path: TestResults
+          retention-days: 14
+
+  docker:
+    name: Docker Compose build and smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [dotnet, web]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Create .env for CI
+        run: |
+          cp .env.example .env
+          sed -i "s|^JWT_SIGNING_KEY=.*|JWT_SIGNING_KEY=$(openssl rand -base64 48 | tr -d '\n')|" .env
+
+      - name: Validate compose file
+        run: docker compose config --quiet
+
+      - name: Build images
+        run: docker compose build
+
+      - name: Start stack and wait for health checks
+        run: docker compose up -d --wait --wait-timeout 300
+
+      - name: Smoke test
+        run: .github/scripts/smoke-test.sh http://localhost:8080
+
+      - name: Container logs
+        if: failure()
+        run: docker compose logs --no-color --tail 200
+
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v

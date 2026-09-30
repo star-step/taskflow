@@ -10,9 +10,10 @@ before changing behaviour); UI reference: `docs/mockups/index.html`. Path-scoped
 - .NET unit + HTTP pipeline tests, no Docker: `dotnet test --filter "Category!=Integration"`
 - SQL Server integration tests (Testcontainers; needs Docker): `dotnet test --filter Category=Integration`
   - With Colima: `export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock`
-- Web: `npm --prefix src/TaskFlow.Web test` (Vitest), `npm --prefix src/TaskFlow.Web run typecheck`, `npm --prefix src/TaskFlow.Web run build`
+- Web: `npm --prefix src/TaskFlow.Web test` (Vitest), `run typecheck`, `run lint` (0 warnings allowed), `run build`
 - Whole stack: `docker compose up -d --build` → http://localhost:8080 (needs `.env`, copied from `.env.example`)
 - Rebuild one service after a change: `docker compose up -d --build api` (or `web`)
+- Smoke test a running stack: `.github/scripts/smoke-test.sh` · CI (`.github/workflows/ci.yml`) runs all of the above
 - Local dev: `docker compose up -d db`, `dotnet run --project src/TaskFlow.Api` (:5080, Swagger), `npm --prefix src/TaskFlow.Web run dev` (:5173)
 - New migration: `dotnet tool restore`, then `dotnet ef migrations add <Name> --project src/TaskFlow.Api --output-dir Data/Migrations`
 - Vulnerability checks: `dotnet list package --vulnerable --include-transitive` and `npm --prefix src/TaskFlow.Web audit`
