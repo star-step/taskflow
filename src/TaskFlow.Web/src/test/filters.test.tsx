@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { renderHook } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { act, renderHook } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router';
 import { LIMITS } from '../api/types';
 import { useTaskFilters } from '../hooks/useTaskFilters';
 
@@ -23,5 +23,21 @@ describe('useTaskFilters', () => {
 
     expect(result.current.filters).toMatchObject({ status: ['ToDo'], priority: ['High'], sortBy: 'Title', sortDir: 'Asc' });
     expect(result.current.view).toBe('board');
+  });
+
+  it('keeps every update when several happen before a re-render (Clear filters with a search active)', () => {
+    // React Router hands functional updates the params of the render that created them, so a second
+    // update in the same tick used to start from the old URL and bring cleared filters back.
+    const { result } = renderHook(() => ({ f: useTaskFilters(), location: useLocation() }), {
+      wrapper: at('/?status=Done&priority=Low&q=E2E'),
+    });
+
+    act(() => {
+      result.current.f.clear();        // the Clear filters button
+      result.current.f.setSearch('');  // the debounced search box catching up
+    });
+
+    expect(result.current.location.search).toBe('');
+    expect(result.current.f.filters).toMatchObject({ status: [], priority: [], search: '' });
   });
 });

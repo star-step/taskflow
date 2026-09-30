@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router';
 import { LIMITS, PRIORITIES, STATUSES, type SortBy, type SortDir, type TaskFilters, type TaskPriority, type TaskStatus } from '../api/types';
 
@@ -27,12 +27,17 @@ export function useTaskFilters() {
 
   const view: View = params.get('view') === 'board' ? 'board' : 'list';
 
+  // React Router passes a functional update the params of the render that created the setter, not the
+  // latest URL. So two updates before a re-render (Clear filters, then the debounced search catching
+  // up) would each start from the old URL and the second would undo the first. Build every update on
+  // the latest params instead, recorded synchronously.
+  const latest = useRef(params);
+  latest.current = params;
   const update = useCallback((change: (p: URLSearchParams) => void) => {
-    setParams((prev) => {
-      const next = new URLSearchParams(prev);
-      change(next);
-      return next;
-    }, { replace: true });
+    const next = new URLSearchParams(latest.current);
+    change(next);
+    latest.current = next;
+    setParams(next, { replace: true });
   }, [setParams]);
 
   const setList = (key: string, values: string[]) => update((p) => {
