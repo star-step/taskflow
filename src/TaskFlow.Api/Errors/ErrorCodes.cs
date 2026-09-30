@@ -7,6 +7,8 @@ public static class ErrorCodes
     public const string TaskNotFound = "TASK_NOT_FOUND";
     public const string NotFound = "NOT_FOUND";
     public const string ConcurrencyConflict = "CONCURRENCY_CONFLICT";
+    public const string DuplicateValue = "DUPLICATE_VALUE";
+    public const string ConstraintViolation = "CONSTRAINT_VIOLATION";
     public const string DatabaseUnavailable = "DATABASE_UNAVAILABLE";
     public const string Unexpected = "UNEXPECTED_ERROR";
     public const string Unauthenticated = "UNAUTHENTICATED";
