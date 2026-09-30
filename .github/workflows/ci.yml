@@ -153,6 +153,9 @@ jobs:
       - name: Smoke test
         run: .github/scripts/smoke-test.sh http://localhost:8080
 
+      - name: Containers run as non-root
+        run: .github/scripts/check-non-root.sh api web
+
       - name: Container logs
         if: failure()
         run: docker compose logs --no-color --tail 200

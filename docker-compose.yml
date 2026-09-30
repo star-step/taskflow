@@ -65,7 +65,12 @@ services:
       default:
         ipv4_address: 172.30.89.10 # the only proxy the API trusts for X-Forwarded-For
     ports:
-      - "8080:80"
+      - "8080:8080" # nginx runs unprivileged, so it listens on 8080 inside the container too
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
     depends_on:
       api:
         condition: service_healthy
