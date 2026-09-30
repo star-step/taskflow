@@ -71,6 +71,22 @@ describe('session restore on start-up', () => {
     expect(new Headers(init!.headers).get('X-TaskFlow-Client')).toBe('web');
   });
 
+  it.each([
+    [429, { errorCode: 'RATE_LIMITED' }],
+    [503, { errorCode: 'API_UNAVAILABLE' }],
+  ])('treats a %i on the start-up refresh as "can\'t reach", not "signed out"', async (status, body) => {
+    let calls = 0;
+    mockApi({ 'POST /api/auth/refresh': () => (++calls === 1 ? json(status, body) : json(200, authResponse)) });
+    const user = userEvent.setup();
+
+    renderApp('/', routes);
+
+    expect(await screen.findByText(/can't reach TaskFlow/i)).toBeInTheDocument();
+    expect(screen.queryByText('Sign-in page')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByText('Task list')).toBeInTheDocument();
+  });
+
   it('sends the user to sign in, keeping where they were going', async () => {
     mockApi({ 'POST /api/auth/refresh': () => json(401, { errorCode: 'INVALID_REFRESH_TOKEN' }) });
 

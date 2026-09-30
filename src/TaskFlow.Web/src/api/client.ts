@@ -19,9 +19,11 @@ export class ApiError extends Error {
 
 interface AuthHooks {
   getToken: () => string | null;
-  /** Gets a new access token from the refresh cookie; resolves null when the session is over. */
+  /**
+   * Gets a new access token from the refresh cookie; resolves null when none could be had. The auth
+   * provider decides what that means (session over, or only temporarily unreachable).
+   */
   refresh: () => Promise<string | null>;
-  onSessionEnded: () => void;
 }
 
 let auth: AuthHooks | null = null;
@@ -61,7 +63,6 @@ export async function api<T>(path: string, options: RequestOptions = {}, isRetry
   if (response.status === 401 && authenticated && auth && !isRetry) {
     const fresh = await auth.refresh();
     if (fresh) return api<T>(path, options, true);
-    auth.onSessionEnded();
   }
 
   if (!response.ok) throw await toApiError(response);
