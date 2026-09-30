@@ -1,16 +1,12 @@
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { ApiError } from '../api/client';
-import { useAuth } from '../auth/AuthProvider';
+import { useAuth } from '../auth/authContext';
 import { AlertIcon, EyeIcon } from '../components/Icons';
 import ui from '../components/ui.module.css';
 import { AuthLayout } from './AuthLayout';
 import styles from './authForm.module.css';
-
-/** Only allow same-app paths as a return target, never another site. */
-export function safeReturnTo(value: string | null): string {
-  return value && value.startsWith('/') && !value.startsWith('//') ? value : '/';
-}
+import { safeReturnTo } from './returnTo';
 
 export function LoginPage() {
   const { login, status } = useAuth();

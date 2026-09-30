@@ -1,10 +1,7 @@
 import { PRIORITY_LEVEL, STATUS_LABEL, type TaskPriority, type TaskStatus } from '../api/types';
 import { avatarColour, initials } from '../hooks/format';
 import styles from './Badges.module.css';
-
-export const priorityClass: Record<TaskPriority, string> = {
-  Critical: styles.crit!, High: styles.high!, Medium: styles.med!, Low: styles.low!,
-};
+import { priorityClass, statusClass } from './badgeClasses';
 
 /** Signal bars: the count carries the priority as well as the colour, for colour-blind users. */
 export function PriorityBars({ priority }: { priority: TaskPriority }) {
@@ -38,14 +35,6 @@ export function StatusIcon({ status }: { status: TaskStatus }) {
   }
   return <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden focusable={false}><circle cx="7" cy="7" r="6" fill="currentColor" /><path d="M4.3 7.2l1.8 1.8 3.6-3.8" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }
-
-export const statusClass: Record<TaskStatus, string> = {
-  ToDo: styles.todo!, InProgress: styles.prog!, Done: styles.done!,
-};
-
-export const statusTextClass: Record<TaskStatus, string> = {
-  ToDo: styles.todoText!, InProgress: styles.progText!, Done: styles.doneText!,
-};
 
 export function StatusPill({ status }: { status: TaskStatus }) {
   return (

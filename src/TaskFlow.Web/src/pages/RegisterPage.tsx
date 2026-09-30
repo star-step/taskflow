@@ -2,12 +2,12 @@ import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { ApiError } from '../api/client';
 import { LIMITS } from '../api/types';
-import { useAuth } from '../auth/AuthProvider';
+import { useAuth } from '../auth/authContext';
 import { StatusIcon } from '../components/Badges';
 import { AlertIcon, EyeIcon } from '../components/Icons';
 import ui from '../components/ui.module.css';
 import { AuthLayout } from './AuthLayout';
-import { safeReturnTo } from './LoginPage';
+import { safeReturnTo } from './returnTo';
 import { passwordChecks } from './passwordRules';
 import styles from './authForm.module.css';
 

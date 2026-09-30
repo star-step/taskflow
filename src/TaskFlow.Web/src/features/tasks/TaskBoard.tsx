@@ -4,7 +4,8 @@ import {
   useSensor, useSensors, type Announcements, type CollisionDetection, type DragEndEvent, type KeyboardCoordinateGetter,
 } from '@dnd-kit/core';
 import { STATUSES, STATUS_LABEL, type Task, type TaskStatus } from '../../api/types';
-import { Avatar, PriorityBadge, StatusIcon, statusTextClass } from '../../components/Badges';
+import { Avatar, PriorityBadge, StatusIcon } from '../../components/Badges';
+import { statusTextClass } from '../../components/badgeClasses';
 import { GripIcon } from '../../components/Icons';
 import { StatusSelect } from '../../components/StatusSelect';
 import { MOBILE, useMediaQuery } from '../../hooks/useMediaQuery';

@@ -5,10 +5,11 @@ import type { Task } from '../../api/types';
 import { StatusPill } from '../../components/Badges';
 import { TrashIcon } from '../../components/Icons';
 import { Drawer } from '../../components/Overlay';
-import { useToast } from '../../components/Toaster';
+import { useToast } from '../../components/toastContext';
 import ui from '../../components/ui.module.css';
 import { dateTime } from '../../hooks/format';
-import { TaskFields, toInput, validateTask, type TaskFormErrors, type TaskFormValues } from './TaskFields';
+import { TaskFields } from './TaskFields';
+import { toInput, validateTask, type TaskFormErrors, type TaskFormValues } from './taskForm';
 import styles from './tasks.module.css';
 
 const fromTask = (t: Task): TaskFormValues => ({

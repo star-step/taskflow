@@ -1,9 +1,10 @@
 import { PRIORITIES, STATUSES, STATUS_LABEL, type SortBy, type SortDir, type TaskFilters, type TaskPriority, type TaskStatus } from '../../api/types';
-import { PriorityBars, priorityClass } from '../../components/Badges';
+import { PriorityBars } from '../../components/Badges';
+import { priorityClass } from '../../components/badgeClasses';
 import { Sheet } from '../../components/Overlay';
 import { Select } from '../../components/Select';
 import ui from '../../components/ui.module.css';
-import { SORT_OPTIONS, assigneeOptions, toggle } from './FilterBar';
+import { SORT_OPTIONS, assigneeOptions, toggle } from './filterOptions';
 import styles from './tasks.module.css';
 
 /** Filters for tablet and phone. Changes apply immediately; the button shows how many tasks match. */

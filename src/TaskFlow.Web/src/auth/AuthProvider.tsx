@@ -1,20 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../api/auth';
 import { configureAuth } from '../api/client';
 import type { AuthResponse, User } from '../api/types';
-
-type Status = 'loading' | 'authenticated' | 'anonymous';
-
-interface AuthContextValue {
-  status: Status;
-  user: User | null;
-  login(email: string, password: string): Promise<void>;
-  register(displayName: string, email: string, password: string): Promise<void>;
-  logout(): Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null);
+import { AuthContext, type AuthContextValue, type AuthStatus } from './authContext';
 
 /** Refresh this long before the access token expires, so requests rarely hit a 401. */
 const REFRESH_EARLY_MS = 60_000;
@@ -26,7 +15,7 @@ const REFRESH_EARLY_MS = 60_000;
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const [status, setStatus] = useState<Status>('loading');
+  const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<User | null>(null);
   const tokenRef = useRef<string | null>(null);
   const refreshing = useRef<Promise<string | null> | null>(null);
@@ -40,6 +29,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear();
   }, [queryClient]);
 
+  // accept() schedules the next refresh, and refresh() calls accept(). The ref breaks that cycle
+  // so both callbacks keep honest dependency lists.
+  const refreshRef = useRef<() => Promise<string | null>>(async () => null);
+
+  const accept = useCallback((res: AuthResponse) => {
+    tokenRef.current = res.accessToken;
+    setUser(res.user);
+    setStatus('authenticated');
+    clearTimeout(timer.current);
+    const wait = new Date(res.expiresAt).getTime() - Date.now() - REFRESH_EARLY_MS;
+    timer.current = setTimeout(() => {
+      void refreshRef.current().then((t) => { if (!t) endSession(); });
+    }, Math.max(wait, 5_000));
+  }, [endSession]);
+
   const refresh = useCallback((): Promise<string | null> => {
     refreshing.current ??= authApi
       .refresh()
@@ -52,18 +56,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshing.current = null;
       });
     return refreshing.current;
-  }, []);
+  }, [accept]);
 
-  const accept = useCallback((res: AuthResponse) => {
-    tokenRef.current = res.accessToken;
-    setUser(res.user);
-    setStatus('authenticated');
-    clearTimeout(timer.current);
-    const wait = new Date(res.expiresAt).getTime() - Date.now() - REFRESH_EARLY_MS;
-    timer.current = setTimeout(() => {
-      void refresh().then((t) => { if (!t) endSession(); });
-    }, Math.max(wait, 5_000));
-  }, [refresh, endSession]);
+  useEffect(() => { refreshRef.current = refresh; }, [refresh]);
 
   useEffect(() => {
     configureAuth({ getToken: () => tokenRef.current, refresh, onSessionEnded: endSession });
@@ -82,10 +77,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }), [status, user, accept, endSession]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');
-  return ctx;
 }

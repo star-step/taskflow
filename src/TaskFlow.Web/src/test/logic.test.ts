@@ -1,7 +1,7 @@
 import { relativeTime } from '../hooks/format';
 import { passwordChecks } from '../pages/passwordRules';
-import { safeReturnTo } from '../pages/LoginPage';
-import { emptyTask, toInput, validateTask } from '../features/tasks/TaskFields';
+import { safeReturnTo } from '../pages/returnTo';
+import { emptyTask, toInput, validateTask } from '../features/tasks/taskForm';
 
 describe('validateTask', () => {
   it('requires a title and a priority, like the API', () => {

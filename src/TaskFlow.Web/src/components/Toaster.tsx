@@ -1,6 +1,7 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { AlertIcon, CheckIcon, CloseIcon } from './Icons';
 import styles from './Toaster.module.css';
+import { ToastContext, type ToastApi } from './toastContext';
 
 interface Toast {
   id: number;
@@ -9,12 +10,6 @@ interface Toast {
   action?: { label: string; run: () => void };
 }
 
-interface ToastApi {
-  success(message: ReactNode): void;
-  error(message: ReactNode, action?: Toast['action']): void;
-}
-
-const ToastContext = createContext<ToastApi | null>(null);
 let nextId = 1;
 
 export function Toaster({ children }: { children: ReactNode }) {
@@ -56,10 +51,4 @@ export function Toaster({ children }: { children: ReactNode }) {
       </div>
     </ToastContext.Provider>
   );
-}
-
-export function useToast(): ToastApi {
-  const ctx = useContext(ToastContext);
-  if (!ctx) throw new Error('useToast must be used inside <Toaster>');
-  return ctx;
 }

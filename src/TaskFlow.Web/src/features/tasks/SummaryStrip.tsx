@@ -1,6 +1,7 @@
 import { useSummary } from '../../api/tasks';
 import { PRIORITIES, STATUSES, STATUS_LABEL, type TaskStatus } from '../../api/types';
-import { PriorityBars, StatusIcon, priorityClass, statusTextClass } from '../../components/Badges';
+import { PriorityBars, StatusIcon } from '../../components/Badges';
+import { priorityClass, statusTextClass } from '../../components/badgeClasses';
 import ui from '../../components/ui.module.css';
 import styles from './tasks.module.css';
 

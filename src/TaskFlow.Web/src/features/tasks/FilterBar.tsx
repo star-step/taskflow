@@ -1,29 +1,12 @@
 import type { RefObject } from 'react';
 import { PRIORITIES, STATUSES, STATUS_LABEL, type SortBy, type SortDir, type TaskFilters, type TaskPriority, type TaskStatus } from '../../api/types';
-import { Avatar, PriorityBars, priorityClass } from '../../components/Badges';
+import { PriorityBars } from '../../components/Badges';
+import { priorityClass } from '../../components/badgeClasses';
 import { CloseIcon, FilterIcon, SearchIcon } from '../../components/Icons';
-import { Select, type SelectOption } from '../../components/Select';
+import { Select } from '../../components/Select';
 import ui from '../../components/ui.module.css';
+import { SORT_OPTIONS, assigneeOptions, toggle } from './filterOptions';
 import styles from './tasks.module.css';
-
-export const SORT_OPTIONS: SelectOption<string>[] = [
-  { value: 'Priority:Desc', label: 'Priority, high to low', short: 'Priority' },
-  { value: 'Priority:Asc', label: 'Priority, low to high', short: 'Priority ↑' },
-  { value: 'Modified:Desc', label: 'Recently modified', short: 'Modified' },
-  { value: 'Created:Desc', label: 'Newest first', short: 'Newest' },
-  { value: 'Title:Asc', label: 'Title A–Z', short: 'Title' },
-];
-
-export function assigneeOptions(names: string[]): SelectOption<string>[] {
-  return [
-    { value: '__any', label: 'Anyone' },
-    ...names.map((n) => ({ value: n, label: n, icon: <Avatar name={n} /> })),
-  ];
-}
-
-export function toggle<T>(list: T[], value: T): T[] {
-  return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
-}
 
 interface Props {
   filters: TaskFilters;

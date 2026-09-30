@@ -1,5 +1,6 @@
 import type { Task, TaskStatus } from '../../api/types';
-import { Assignee, PriorityBadge, priorityClass } from '../../components/Badges';
+import { Assignee, PriorityBadge } from '../../components/Badges';
+import { priorityClass } from '../../components/badgeClasses';
 import { EditIcon, MoreIcon, TrashIcon } from '../../components/Icons';
 import { Menu } from '../../components/Menu';
 import { StatusSelect } from '../../components/StatusSelect';

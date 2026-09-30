@@ -4,7 +4,7 @@ import { useDeleteTask, useTasks, useUpdateStatus, useUsers } from '../../api/ta
 import { STATUS_LABEL, type Task, type TaskStatus } from '../../api/types';
 import { EmptyIcon, PlusIcon } from '../../components/Icons';
 import { ConfirmDialog } from '../../components/Overlay';
-import { useToast } from '../../components/Toaster';
+import { useToast } from '../../components/toastContext';
 import ui from '../../components/ui.module.css';
 import { COMPACT, useMediaQuery } from '../../hooks/useMediaQuery';
 import { useTaskFilters } from '../../hooks/useTaskFilters';
@@ -50,7 +50,7 @@ export function TasksPage() {
     ),
   });
 
-  const list = tasks.data ?? [];
+  const list = useMemo(() => tasks.data ?? [], [tasks.data]);
   const selected = list.find((t) => t.id === selectedId) ?? null;
   const assignees = useMemo(() => {
     const names = new Set<string>([...(users.data ?? []).map((u) => u.displayName), ...list.map((t) => t.assignedTo).filter((n): n is string => !!n)]);

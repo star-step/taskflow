@@ -1,4 +1,4 @@
-import { useAuth } from '../../auth/AuthProvider';
+import { useAuth } from '../../auth/authContext';
 import { Avatar } from '../../components/Badges';
 import { BoardIcon, ListIcon, PlusIcon, SearchIcon } from '../../components/Icons';
 import { Menu } from '../../components/Menu';

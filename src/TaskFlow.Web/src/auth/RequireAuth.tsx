@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router';
-import { useAuth } from './AuthProvider';
+import { useAuth } from './authContext';
 import styles from './RequireAuth.module.css';
 
 /** Shows children to signed-in users; otherwise sends them to sign in and back here afterwards. */

@@ -1,14 +1,9 @@
-import { STATUSES, STATUS_LABEL, type TaskStatus } from '../api/types';
-import { StatusIcon, statusTextClass } from './Badges';
+import { STATUS_LABEL, type TaskStatus } from '../api/types';
+import { StatusIcon } from './Badges';
 import { ChevronIcon } from './Icons';
-import { Select, type SelectOption } from './Select';
+import { Select } from './Select';
+import { statusOptions } from './statusOptions';
 import styles from './StatusSelect.module.css';
-
-export const statusOptions: SelectOption<TaskStatus>[] = STATUSES.map((s) => ({
-  value: s,
-  label: STATUS_LABEL[s],
-  icon: <span className={`${styles.icon} ${statusTextClass[s]}`}><StatusIcon status={s} /></span>,
-}));
 
 const pillColour: Record<TaskStatus, string | undefined> = { ToDo: styles.todo, InProgress: styles.prog, Done: styles.done };
 
