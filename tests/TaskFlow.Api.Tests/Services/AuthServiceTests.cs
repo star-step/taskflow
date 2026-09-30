@@ -160,6 +160,19 @@ public sealed class AuthServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task RefreshAsync_ReuseExactlyAtGraceLimit_IsAllowed_ButNotAfter()
+    {
+        var first = await Register();
+        await WithAuth(a => a.RefreshAsync(first.RefreshToken));
+
+        _host.Clock.Advance(TimeSpan.FromSeconds(20));
+        await WithAuth(a => a.RefreshAsync(first.RefreshToken)); // boundary: still the benign two-tab race
+
+        _host.Clock.Advance(TimeSpan.FromMilliseconds(1));
+        await Assert.ThrowsAsync<InvalidRefreshTokenException>(() => WithAuth(a => a.RefreshAsync(first.RefreshToken)));
+    }
+
+    [Fact]
     public async Task RefreshAsync_AfterExpiry_Fails()
     {
         var first = await Register();

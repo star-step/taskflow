@@ -123,6 +123,52 @@ public sealed class TaskServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateAsync_ReplacesEditableFields_AndKeepsCreatedDate()
+    {
+        var before = await _service.GetByIdAsync(4);
+        _host.Clock.Advance(TimeSpan.FromHours(2));
+
+        var after = await _service.UpdateAsync(4, new UpdateTaskRequest
+        {
+            Title = "  Onboarding guide v2 ",
+            Description = "Now with Docker steps.",
+            Status = TaskItemStatus.Done,
+            Priority = TaskPriority.High,
+            AssignedTo = ""
+        });
+
+        Assert.Equal("Onboarding guide v2", after.Title);
+        Assert.Equal("Now with Docker steps.", after.Description);
+        Assert.Equal(TaskItemStatus.Done, after.Status);
+        Assert.Equal(TaskPriority.High, after.Priority);
+        Assert.Null(after.AssignedTo);
+        Assert.Equal(before.CreatedDate, (await _service.GetByIdAsync(4)).CreatedDate);
+        Assert.Equal(TestHost.Start.UtcDateTime.AddHours(2), after.ModifiedDate);
+    }
+
+    [Theory]
+    [InlineData(TaskSortField.Title, SortDirection.Asc, new[] { 6, 9, 8, 3, 10, 2, 11, 5 })] // Add…, Archive…, Design…, Fix…
+    [InlineData(TaskSortField.Modified, SortDirection.Desc, new[] { 10, 3, 8, 1, 6, 12, 2, 4 })]
+    [InlineData(TaskSortField.Created, SortDirection.Asc, new[] { 9, 5, 4, 7, 2, 1, 11, 12 })] // 12 (21st 09:15) before 8 (21st 10:30)
+    public async Task GetTasksAsync_SortsByRequestedField(TaskSortField field, SortDirection dir, int[] expectedPrefix)
+    {
+        var ids = (await _service.GetTasksAsync(new TaskQuery { SortBy = field, SortDir = dir })).Select(t => t.Id).ToArray();
+
+        Assert.Equal(expectedPrefix, ids.Take(expectedPrefix.Length));
+    }
+
+    [Fact]
+    public async Task GetTasksAsync_SortByStatus_GroupsStatusesInOrder()
+    {
+        var asc = (await _service.GetTasksAsync(new TaskQuery { SortBy = TaskSortField.Status, SortDir = SortDirection.Asc }))
+            .Select(t => t.Status).ToList();
+
+        Assert.Equal(asc.OrderBy(s => s).ToList(), asc);
+        Assert.Equal(TaskItemStatus.ToDo, asc[0]);
+        Assert.Equal(TaskItemStatus.Done, asc[^1]);
+    }
+
+    [Fact]
     public async Task UpdateAsync_UnknownId_ThrowsNotFound()
     {
         await Assert.ThrowsAsync<NotFoundException>(() => _service.UpdateAsync(999, new UpdateTaskRequest

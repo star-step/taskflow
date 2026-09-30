@@ -10,7 +10,7 @@ namespace TaskFlow.Api.Tests.Integration;
 
 /// <summary>
 /// Runs the raw GROUPING SETS summary against a real SQL Server in Docker, after applying the real
-/// migrations. Skipped when Docker isn't available, except in CI where it fails. Run only these with:
+/// migrations. Skipped when Docker isn't available, except in CI where it fails (see SqlServerContainer). Run only these with:
 /// dotnet test --filter Category=Integration
 /// </summary>
 [Trait("Category", "Integration")]
@@ -19,20 +19,7 @@ public sealed class TaskSummaryQueryTests : IAsyncLifetime
     private MsSqlContainer? _sql;
     private string? _skipReason;
 
-    public async Task InitializeAsync()
-    {
-        try
-        {
-            _sql = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build();
-            await _sql.StartAsync();
-        }
-        // Locally, no Docker means skip. In CI (GitHub Actions sets CI=true) a missing Docker must fail the
-        // run, otherwise a broken runner would pass with this test silently skipped.
-        catch (Exception ex) when (!string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
-        {
-            _skipReason = $"Docker/SQL Server not available: {ex.GetType().Name}";
-        }
-    }
+    public async Task InitializeAsync() => (_sql, _skipReason) = await SqlServerContainer.StartAsync();
 
     public async Task DisposeAsync()
     {
@@ -47,7 +34,7 @@ public sealed class TaskSummaryQueryTests : IAsyncLifetime
     {
         Skip.If(_skipReason is not null, _skipReason);
 
-        var connectionString = _sql!.GetConnectionString().Replace("Database=master", "Database=TaskFlow");
+        var connectionString = _sql!.TaskFlowDatabase();
         var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(connectionString).Options;
         await using (var db = new AppDbContext(options, new FakeTimeProvider()))
         {
