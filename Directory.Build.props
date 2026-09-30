@@ -6,5 +6,7 @@
     <!-- Missing XML docs are allowed; everything else is an error. -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <!-- Reproducible restores: packages.lock.json per project; CI restores with locked mode. -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 </Project>

@@ -4,9 +4,9 @@ WORKDIR /src
 
 # Restore first so the package layer is cached until a project file changes.
 COPY global.json Directory.Build.props ./
-COPY src/TaskFlow.Shared/TaskFlow.Shared.csproj src/TaskFlow.Shared/
-COPY src/TaskFlow.Api/TaskFlow.Api.csproj src/TaskFlow.Api/
-RUN dotnet restore src/TaskFlow.Api/TaskFlow.Api.csproj
+COPY src/TaskFlow.Shared/TaskFlow.Shared.csproj src/TaskFlow.Shared/packages.lock.json src/TaskFlow.Shared/
+COPY src/TaskFlow.Api/TaskFlow.Api.csproj src/TaskFlow.Api/packages.lock.json src/TaskFlow.Api/
+RUN dotnet restore src/TaskFlow.Api/TaskFlow.Api.csproj --locked-mode
 
 COPY src/TaskFlow.Shared/ src/TaskFlow.Shared/
 COPY src/TaskFlow.Api/ src/TaskFlow.Api/
