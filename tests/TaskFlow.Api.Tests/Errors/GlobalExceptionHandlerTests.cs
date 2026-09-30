@@ -2,14 +2,17 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using TaskFlow.Api.Tests.Support;
 using TaskFlow.Api.Errors;
 
 namespace TaskFlow.Api.Tests.Errors;
 
 public sealed class GlobalExceptionHandlerTests
 {
-    private static async Task<(int Status, JsonElement Body)> Handle(Exception exception, string environment = "Production")
+    private static async Task<(int Status, JsonElement Body)> Handle(Exception exception, string environment = "Production",
+        CapturingLoggerProvider? logs = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -21,8 +24,10 @@ public sealed class GlobalExceptionHandlerTests
         context.Response.Body = new MemoryStream();
 
         var env = new FakeEnvironment { EnvironmentName = environment };
-        var handler = new GlobalExceptionHandler(provider.GetRequiredService<IProblemDetailsService>(),
-            NullLogger<GlobalExceptionHandler>.Instance, env);
+        ILogger<GlobalExceptionHandler> logger = logs is null
+            ? NullLogger<GlobalExceptionHandler>.Instance
+            : new Logger<GlobalExceptionHandler>(new LoggerFactory(new[] { logs }));
+        var handler = new GlobalExceptionHandler(provider.GetRequiredService<IProblemDetailsService>(), logger, env);
 
         Assert.True(await handler.TryHandleAsync(context, exception, CancellationToken.None));
 
@@ -62,6 +67,20 @@ public sealed class GlobalExceptionHandlerTests
         Assert.Equal(500, status);
         Assert.Equal("UNEXPECTED_ERROR", body.GetProperty("errorCode").GetString());
         Assert.DoesNotContain("hunter2", body.GetProperty("detail").GetString());
+    }
+
+    [Fact]
+    public async Task Logging_ErrorForUnexpected_DebugForExpected()
+    {
+        var unexpected = new CapturingLoggerProvider();
+        var expected = new CapturingLoggerProvider();
+
+        await Handle(new InvalidOperationException("boom"), logs: unexpected);
+        await Handle(new NotFoundException("Task", 42), logs: expected);
+
+        Assert.Contains(unexpected.Entries, e => e.Level == LogLevel.Error);
+        Assert.DoesNotContain(expected.Entries, e => e.Level >= LogLevel.Warning);
+        Assert.Contains(expected.Entries, e => e.Level == LogLevel.Debug && e.Message.Contains("TASK_NOT_FOUND"));
     }
 
     private sealed class FakeEnvironment : IHostEnvironment

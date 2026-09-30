@@ -10,7 +10,7 @@ namespace TaskFlow.Api.Errors;
 /// <c>errorCode</c> and <c>traceId</c>. Unexpected errors are logged with the same traceId and
 /// only reveal their message in Development.
 /// </summary>
-public sealed class GlobalExceptionHandler : IExceptionHandler
+public sealed partial class GlobalExceptionHandler : IExceptionHandler
 {
     private readonly IProblemDetailsService _problemDetails;
     private readonly ILogger<GlobalExceptionHandler> _logger;
@@ -33,14 +33,22 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             return true;
         }
 
+        // This handler is the only place exceptions are logged: ExceptionHandlerMiddleware's own
+        // Error entry is filtered out in Program.cs, since most exceptions here are expected 4xx.
         var problem = Map(exception);
-        if (problem.Status >= StatusCodes.Status500InternalServerError)
+        var status = problem.Status!.Value;
+        var method = httpContext.Request.Method;
+        var path = httpContext.Request.Path.Value ?? "/";
+        if (status >= StatusCodes.Status500InternalServerError)
         {
-            _logger.LogError(exception, "Unhandled exception for {Method} {Path}",
-                httpContext.Request.Method, httpContext.Request.Path);
+            LogUnexpected(_logger, exception, method, path, status);
+        }
+        else
+        {
+            LogExpected(_logger, method, path, status, problem.Extensions["errorCode"] as string ?? ErrorCodes.ForStatus(status));
         }
 
-        httpContext.Response.StatusCode = problem.Status!.Value;
+        httpContext.Response.StatusCode = status;
         return await _problemDetails.TryWriteAsync(new ProblemDetailsContext
         {
             HttpContext = httpContext,
@@ -79,6 +87,12 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                     ErrorCodes.Unexpected);
         }
     }
+
+    [LoggerMessage(EventId = 2000, Level = LogLevel.Error, Message = "Unhandled exception for {Method} {Path}, responding {StatusCode}")]
+    private static partial void LogUnexpected(ILogger logger, Exception exception, string method, string path, int statusCode);
+
+    [LoggerMessage(EventId = 2001, Level = LogLevel.Debug, Message = "{Method} {Path} handled as {StatusCode} {ErrorCode}")]
+    private static partial void LogExpected(ILogger logger, string method, string path, int statusCode, string errorCode);
 
     private static ProblemDetails Problem(int status, string title, string detail, string code)
     {

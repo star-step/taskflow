@@ -8,6 +8,10 @@ var builder = WebApplication.CreateBuilder(args);
 var config = builder.Configuration;
 
 builder.Services.AddSingleton(TimeProvider.System);
+
+// ExceptionHandlerMiddleware logs every exception at Error before our IExceptionHandler runs, including
+// expected 4xx (not found, bad credentials). GlobalExceptionHandler logs instead, at the right level.
+builder.Logging.AddFilter("Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware", LogLevel.None);
 builder.Services.Configure<SeedOptions>(config.GetSection(SeedOptions.Section));
 
 builder.Services.AddTaskFlowDatabase(config);
