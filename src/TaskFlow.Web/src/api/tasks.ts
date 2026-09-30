@@ -79,8 +79,8 @@ export function useDeleteTask() {
 interface StatusChange { id: number; status: TaskStatus }
 
 /**
- * Optimistic status change: every cached task list shows the new status at once. On failure the
- * previous lists are restored and the caller's onError shows what happened.
+ * Optimistic status change: every cached task list shows the new status at once. On failure only
+ * the failed task is put back (other changes may be in flight) and the caller's onError reports it.
  */
 export function useUpdateStatus(options: { onError?: (change: StatusChange & { previous: TaskStatus }, error: unknown) => void } = {}) {
   const qc = useQueryClient();
@@ -90,7 +90,6 @@ export function useUpdateStatus(options: { onError?: (change: StatusChange & { p
       api<Task>(`/tasks/${id}/status`, { method: 'PATCH', json: { status } }),
     onMutate: async ({ id, status }) => {
       await qc.cancelQueries({ queryKey: taskKeys.all });
-      const snapshot = qc.getQueriesData<Task[]>({ queryKey: taskKeys.all });
       let previous: TaskStatus | undefined;
       qc.setQueriesData<Task[]>({ queryKey: taskKeys.all }, (old) =>
         old?.map((t) => {
@@ -99,11 +98,17 @@ export function useUpdateStatus(options: { onError?: (change: StatusChange & { p
           return { ...t, status };
         }),
       );
-      return { snapshot, previous };
+      return { previous };
     },
     onError: (error, change, context) => {
-      context?.snapshot.forEach(([key, data]) => qc.setQueryData(key, data));
-      options.onError?.({ ...change, previous: context?.previous ?? change.status }, error);
+      const previous = context?.previous;
+      if (previous) {
+        // Revert just this task, and only if nothing has changed it since.
+        qc.setQueriesData<Task[]>({ queryKey: taskKeys.all }, (old) =>
+          old?.map((t) => (t.id === change.id && t.status === change.status ? { ...t, status: previous } : t)),
+        );
+      }
+      options.onError?.({ ...change, previous: previous ?? change.status }, error);
     },
     onSettled: invalidate,
   });

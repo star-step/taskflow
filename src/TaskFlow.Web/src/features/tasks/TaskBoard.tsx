@@ -64,10 +64,9 @@ export function TaskBoard({ tasks, onOpen, onStatus }: { tasks: Task[]; onOpen(t
   return (
     <>
       <div className={styles.boardTabs}>
-        <div className={styles.seg} role="tablist" aria-label="Column">
+        <div className={styles.seg} role="group" aria-label="Column">
           {STATUSES.map((s) => (
-            <button key={s} type="button" role="tab" aria-selected={mobileColumn === s} aria-pressed={mobileColumn === s}
-              onClick={() => setMobileColumn(s)}>
+            <button key={s} type="button" aria-pressed={mobileColumn === s} onClick={() => setMobileColumn(s)}>
               {STATUS_LABEL[s]} <span className={styles.count}>{byStatus(s).length}</span>
             </button>
           ))}

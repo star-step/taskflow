@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { act, render, renderHook, screen, waitFor } from '@testing-library/react';
+import { act, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
@@ -7,6 +7,7 @@ import { AuthProvider } from '../auth/AuthProvider';
 import { RequireAuth } from '../auth/RequireAuth';
 import { taskKeys, useUpdateStatus } from '../api/tasks';
 import type { Task, TaskFilters } from '../api/types';
+import { TaskBoard } from '../features/tasks/TaskBoard';
 import { LoginPage } from '../pages/LoginPage';
 import { RegisterPage } from '../pages/RegisterPage';
 
@@ -105,6 +106,53 @@ describe('useUpdateStatus', () => {
     await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
     expect(onError.mock.calls[0]![0]).toMatchObject({ id: 6, status: 'Done', previous: 'ToDo' });
     expect(client.getQueryData<Task[]>(taskKeys.list(filters))![0]!.status).toBe('ToDo');
+  });
+});
+
+describe('useUpdateStatus with two changes in flight', () => {
+  const filters: TaskFilters = { status: [], priority: [], assignedTo: '', search: '', sortBy: 'Priority', sortDir: 'Desc' };
+  const base = { description: null, priority: 'High' as const, assignedTo: null, createdDate: '2026-09-22T13:10:00Z', modifiedDate: '2026-09-28T07:00:00Z' };
+
+  it('rolls back only the task that failed, keeping the other change', async () => {
+    let failSix!: () => void;
+    mockApi({
+      'PATCH /api/tasks/6/status': () => new Promise<Response>((r) => { failSix = () => r(json(503, { errorCode: 'DATABASE_UNAVAILABLE' })); }),
+      'PATCH /api/tasks/7/status': () => new Promise<Response>(() => {}), // still pending
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    client.setQueryData(taskKeys.list(filters), [
+      { ...base, id: 6, title: 'Six', status: 'ToDo' },
+      { ...base, id: 7, title: 'Seven', status: 'ToDo' },
+    ] satisfies Task[]);
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+    const six = renderHook(() => useUpdateStatus(), { wrapper });
+    const seven = renderHook(() => useUpdateStatus(), { wrapper });
+    const status = (id: number) => client.getQueryData<Task[]>(taskKeys.list(filters))!.find((t) => t.id === id)!.status;
+
+    act(() => six.result.current.mutate({ id: 6, status: 'Done' }));
+    await waitFor(() => expect(status(6)).toBe('Done'));
+    act(() => seven.result.current.mutate({ id: 7, status: 'InProgress' }));
+    await waitFor(() => expect(status(7)).toBe('InProgress'));
+
+    act(() => failSix());
+
+    await waitFor(() => expect(status(6)).toBe('ToDo'));
+    expect(status(7)).toBe('InProgress');
+  });
+});
+
+describe('TaskBoard column switcher', () => {
+  it('is a toggle group, not a half-implemented tablist', () => {
+    const tasks: Task[] = [{ id: 1, title: 'One', description: null, status: 'ToDo', priority: 'Low', assignedTo: null,
+      createdDate: '2026-09-22T13:10:00Z', modifiedDate: '2026-09-28T07:00:00Z' }];
+    render(<TaskBoard tasks={tasks} onOpen={() => {}} onStatus={() => {}} />);
+
+    expect(screen.queryAllByRole('tab')).toHaveLength(0);
+    expect(screen.queryAllByRole('tablist')).toHaveLength(0);
+    const group = screen.getByRole('group', { name: 'Column' });
+    const buttons = within(group).getAllByRole('button');
+    expect(buttons).toHaveLength(3);
+    expect(buttons[0]).toHaveAttribute('aria-pressed', 'true');
   });
 });
 
