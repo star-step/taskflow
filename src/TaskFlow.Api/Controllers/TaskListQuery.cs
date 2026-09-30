@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using TaskFlow.Api.Services;
 using TaskFlow.Shared.Enums;
+using TaskFlow.Shared.Validation;
 
 namespace TaskFlow.Api.Controllers;
 
@@ -14,11 +15,11 @@ public sealed class TaskListQuery
     public TaskPriority[]? Priority { get; set; }
 
     /// <summary>Case-insensitive "contains" match on the assignee.</summary>
-    [StringLength(100)]
+    [StringLength(TaskFieldLimits.AssignedToMaxLength, ErrorMessage = "Assigned to must be {1} characters or fewer.")]
     public string? AssignedTo { get; set; }
 
     /// <summary>Matches title or description.</summary>
-    [StringLength(200)]
+    [StringLength(TaskFieldLimits.SearchMaxLength, ErrorMessage = "Search must be {1} characters or fewer.")]
     public string? Search { get; set; }
 
     public TaskSortField SortBy { get; set; } = TaskSortField.Priority;

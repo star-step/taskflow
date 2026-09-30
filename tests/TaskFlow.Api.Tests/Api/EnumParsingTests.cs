@@ -74,6 +74,17 @@ public sealed class EnumParsingTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task Query_TooLongSearchOrAssignee_UsesSharedLimitMessages()
+    {
+        var client = await Client();
+
+        var body = await Body(await client.GetAsync($"/api/tasks?search={new string('x', 201)}&assignedTo={new string('y', 101)}"));
+
+        Assert.Equal("Search must be 200 characters or fewer.", body.GetProperty("errors").GetProperty("search")[0].GetString());
+        Assert.Equal("Assigned to must be 100 characters or fewer.", body.GetProperty("errors").GetProperty("assignedTo")[0].GetString());
+    }
+
+    [Fact]
     public async Task Errors_ReadTheSame_InQueryAndBody()
     {
         var client = await Client();

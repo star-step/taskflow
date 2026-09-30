@@ -8,4 +8,5 @@ public static class TaskFieldLimits
     public const int TitleMaxLength = 200;
     public const int DescriptionMaxLength = 2000;
     public const int AssignedToMaxLength = 100;
+    public const int SearchMaxLength = 200;
 }

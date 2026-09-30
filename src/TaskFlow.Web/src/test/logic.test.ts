@@ -24,9 +24,14 @@ describe('validateTask', () => {
 
 describe('passwordChecks', () => {
   it('mirrors the length and personal-info rules', () => {
-    expect(passwordChecks('short', 'jordan.ellis@company.com', 'Jordan Ellis')).toEqual({ length: false, personal: true });
-    expect(passwordChecks('jordan-rocks-2026', 'jordan.ellis@company.com', 'Jordan Ellis')).toEqual({ length: true, personal: false });
-    expect(passwordChecks('harbour-lantern-47', 'jordan.ellis@company.com', 'Jordan Ellis')).toEqual({ length: true, personal: true });
+    expect(passwordChecks('short', 'jordan.ellis@company.com', 'Jordan Ellis')).toEqual({ length: false, personal: true, notTooLong: true });
+    expect(passwordChecks('jordan-rocks-2026', 'jordan.ellis@company.com', 'Jordan Ellis')).toEqual({ length: true, personal: false, notTooLong: true });
+    expect(passwordChecks('harbour-lantern-47', 'jordan.ellis@company.com', 'Jordan Ellis')).toEqual({ length: true, personal: true, notTooLong: true });
+  });
+
+  it('rejects passwords over the API maximum', () => {
+    expect(passwordChecks('a'.repeat(129), 'x@company.com', 'Q Q').notTooLong).toBe(false);
+    expect(passwordChecks('a'.repeat(128), 'x@company.com', 'Q Q').notTooLong).toBe(true);
   });
 });
 

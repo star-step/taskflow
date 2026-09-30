@@ -43,6 +43,7 @@ export function RegisterPage() {
     const c = passwordChecks(v.password, v.email, v.displayName);
     if (!v.password) e.password = 'Choose a password.';
     else if (!c.length) e.password = `Password must be at least ${LIMITS.passwordMin} characters.`;
+    else if (!c.notTooLong) e.password = `Password must be ${LIMITS.passwordMax} characters or fewer.`;
     else if (!c.personal) e.password = "Password can't include your name or email.";
     if (v.confirm !== v.password) e.confirm = "Passwords don't match.";
     return e;

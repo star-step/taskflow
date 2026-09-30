@@ -62,4 +62,5 @@ export const STATUS_LABEL: Record<TaskStatus, string> = { ToDo: 'To Do', InProgr
 export const PRIORITIES: TaskPriority[] = ['Critical', 'High', 'Medium', 'Low'];
 export const PRIORITY_LEVEL: Record<TaskPriority, number> = { Low: 1, Medium: 2, High: 3, Critical: 4 };
 
-export const LIMITS = { title: 200, description: 2000, assignedTo: 100, passwordMin: 12, displayNameMin: 2, displayNameMax: 100 };
+/** Mirrors TaskFieldLimits and AccountRules in TaskFlow.Shared. */
+export const LIMITS = { title: 200, description: 2000, assignedTo: 100, search: 200, passwordMin: 12, passwordMax: 128, displayNameMin: 2, displayNameMax: 100 };

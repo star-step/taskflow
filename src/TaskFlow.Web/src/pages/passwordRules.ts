@@ -10,6 +10,7 @@ export function passwordChecks(password: string, email: string, displayName: str
   const lower = password.toLowerCase();
   return {
     length: password.length >= LIMITS.passwordMin,
+    notTooLong: password.length <= LIMITS.passwordMax,
     personal: password.length > 0 && !parts.some((p) => lower.includes(p.toLowerCase())),
   };
 }

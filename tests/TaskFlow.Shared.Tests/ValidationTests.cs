@@ -46,3 +46,25 @@ public sealed class ValidationTests
         Assert.Empty(Validate(new CreateTaskRequest { Title = "Ship it", Priority = TaskPriority.High }));
     }
 }
+
+public sealed class RegisterRequestValidationTests
+{
+    private static List<string?> Errors(TaskFlow.Shared.Contracts.Auth.RegisterRequest model)
+    {
+        var results = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
+        System.ComponentModel.DataAnnotations.Validator.TryValidateObject(model,
+            new System.ComponentModel.DataAnnotations.ValidationContext(model), results, validateAllProperties: true);
+        return results.Select(r => r.ErrorMessage).ToList();
+    }
+
+    private static TaskFlow.Shared.Contracts.Auth.RegisterRequest Valid(string password) =>
+        new() { DisplayName = "Jordan Ellis", Email = "jordan@company.com", Password = password };
+
+    [Fact]
+    public void Password_TooShort_And_TooLong_GetTheirOwnMessages()
+    {
+        Assert.Equal(new[] { "Password must be at least 12 characters." }, Errors(Valid(new string('a', 11))));
+        Assert.Equal(new[] { "Password must be 128 characters or fewer." }, Errors(Valid(new string('a', 129))));
+        Assert.Empty(Errors(Valid(new string('a', 128))));
+    }
+}
