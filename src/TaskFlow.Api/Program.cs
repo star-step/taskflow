@@ -37,6 +37,8 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.WithOrigins(corsOrigins)
 
 var app = builder.Build();
 
+// Outermost, so it records the final status after the exception handler and status-code pages ran.
+app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseForwardedHeaders();
 app.UseExceptionHandler();
 app.UseStatusCodePages(); // bodyless 401/403/404/405 become ProblemDetails too

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using TaskFlow.Api.Data;
 
 namespace TaskFlow.Api.Tests.Support;
@@ -17,6 +18,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
 {
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
 
+    /// <summary>Every log entry written by the API during the tests.</summary>
+    public CapturingLoggerProvider Logs { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         _connection.Open();
@@ -26,11 +30,14 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Auth:AllowedEmailDomains:0", "company.com");
         builder.UseSetting("Auth:CookieSecure", "false");
         builder.UseSetting("RateLimits:RegisterPerTenMinutes", "100");
+        // Let tests see the Debug-level health-probe lines (hidden by the default Information minimum).
+        builder.UseSetting("Logging:LogLevel:TaskFlow.Api.Infrastructure.RequestLoggingMiddleware", "Debug");
 
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<DbContextOptions<AppDbContext>>();
             services.AddDbContext<AppDbContext>(o => o.UseSqlite(_connection));
+            services.AddSingleton<ILoggerProvider>(Logs);
         });
     }
 
