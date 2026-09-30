@@ -35,7 +35,7 @@ function title(tasks: Task[], id: string | number) {
   return t ? `task #${t.id}, ${t.title}` : `task ${id}`;
 }
 
-export function TaskBoard({ tasks, onOpen, onStatus }: { tasks: Task[]; onOpen(t: Task): void; onStatus(t: Task, s: TaskStatus): void }) {
+export function TaskBoard({ tasks, onOpen, onStatus }: { tasks: Task[]; onOpen: (t: Task) => void; onStatus: (t: Task, s: TaskStatus) => void }) {
   const isMobile = useMediaQuery(MOBILE);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [mobileColumn, setMobileColumn] = useState<TaskStatus>('ToDo');
@@ -90,7 +90,7 @@ export function TaskBoard({ tasks, onOpen, onStatus }: { tasks: Task[]; onOpen(t
 
 function Column({ status, tasks, hidden, dragDisabled, activeId, onOpen, onStatus }: {
   status: TaskStatus; tasks: Task[]; hidden: boolean; dragDisabled: boolean; activeId: number | null;
-  onOpen(t: Task): void; onStatus(t: Task, s: TaskStatus): void;
+  onOpen: (t: Task) => void; onStatus: (t: Task, s: TaskStatus) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   const dragging = activeId !== null && !tasks.some((t) => t.id === activeId);
@@ -106,7 +106,7 @@ function Column({ status, tasks, hidden, dragDisabled, activeId, onOpen, onStatu
   );
 }
 
-function DraggableCard({ task, disabled, onOpen, onStatus }: { task: Task; disabled: boolean; onOpen(t: Task): void; onStatus(t: Task, s: TaskStatus): void }) {
+function DraggableCard({ task, disabled, onOpen, onStatus }: { task: Task; disabled: boolean; onOpen: (t: Task) => void; onStatus: (t: Task, s: TaskStatus) => void }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id, disabled });
   return (
     <div ref={setNodeRef} className={isDragging ? styles.isGhost : undefined}>
@@ -116,7 +116,7 @@ function DraggableCard({ task, disabled, onOpen, onStatus }: { task: Task; disab
 }
 
 function CardBody({ task, dragging, onOpen, onStatus, handleProps }: {
-  task: Task; dragging?: boolean; onOpen?(t: Task): void; onStatus?(t: Task, s: TaskStatus): void;
+  task: Task; dragging?: boolean; onOpen?: (t: Task) => void; onStatus?: (t: Task, s: TaskStatus) => void;
   handleProps?: Record<string, unknown>;
 }) {
   return (

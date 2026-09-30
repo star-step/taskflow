@@ -10,7 +10,10 @@ before changing behaviour); UI reference: `docs/mockups/index.html`. Path-scoped
 - .NET unit + HTTP pipeline tests, no Docker: `dotnet test --filter "Category!=Integration"`
 - SQL Server integration tests (Testcontainers; needs Docker): `dotnet test --filter Category=Integration`
   - With Colima: `export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock`
-- Web: `npm --prefix src/TaskFlow.Web test` (Vitest), `run typecheck`, `run lint` (0 warnings allowed), `run build`
+- Web: `npm --prefix src/TaskFlow.Web test` (Vitest), `run typecheck`, `run lint` (type-aware + jsx-a11y, 0 warnings),
+  `run knip` (unused files/exports/deps), `run build`
+- Node 22 (`src/TaskFlow.Web/.nvmrc`), as in Docker and CI. If you change dependencies with a newer npm, regenerate the
+  lock with `npx npm@10 install --package-lock-only`, or `npm ci` fails in CI/Docker.
 - Whole stack: `docker compose up -d --build` → http://localhost:8080 (needs `.env`, copied from `.env.example`)
 - Rebuild one service after a change: `docker compose up -d --build api` (or `web`)
 - Smoke test a running stack: `.github/scripts/smoke-test.sh` · CI (`.github/workflows/ci.yml`) runs all of the above

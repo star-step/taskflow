@@ -36,7 +36,7 @@ export function LoginPage() {
     setError(null);
     try {
       await login(email.trim(), password);
-      navigate(returnTo, { replace: true });
+      void navigate(returnTo, { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Sign-in failed. Try again.');
       setPassword('');
@@ -46,7 +46,7 @@ export function LoginPage() {
   }
 
   return (
-    <AuthLayout onSubmit={submit}>
+    <AuthLayout onSubmit={(e) => void submit(e)}>
       <div>
         <h1 className={styles.heading}>Sign in</h1>
         <p className={styles.lead}>Use your work email.</p>
@@ -54,7 +54,7 @@ export function LoginPage() {
       {error && <div className={ui.alert} role="alert"><AlertIcon /><span>{error}</span></div>}
       <div className={ui.field}>
         <label className={ui.label} htmlFor="email">Email</label>
-        <input id="email" type="email" autoComplete="username" placeholder="name@company.com" autoFocus
+        <input id="email" type="email" autoComplete="username" placeholder="name@company.com"
           className={`${ui.input} ${fieldErrors.email ? ui.invalid : ''}`} value={email}
           onChange={(e) => setEmail(e.target.value)} aria-invalid={!!fieldErrors.email}
           aria-describedby={fieldErrors.email ? 'email-error' : undefined} />

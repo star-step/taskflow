@@ -18,7 +18,7 @@ const fromTask = (t: Task): TaskFormValues => ({
 
 /** View and edit one task. Closing with unsaved edits asks first. */
 export function TaskDetailDrawer({ task, onClose, onDelete, assignees }: {
-  task: Task | null; onClose(): void; onDelete(t: Task): void; assignees: string[];
+  task: Task | null; onClose: () => void; onDelete: (t: Task) => void; assignees: string[];
 }) {
   const update = useUpdateTask();
   const toast = useToast();
@@ -52,7 +52,7 @@ export function TaskDetailDrawer({ task, onClose, onDelete, assignees }: {
       onClose();
     } catch (err) {
       if (err instanceof ApiError && Object.keys(err.errors).length) {
-        setErrors(Object.fromEntries(Object.entries(err.errors).map(([k, v]) => [k, v[0]])) as TaskFormErrors);
+        setErrors(Object.fromEntries(Object.entries(err.errors).map(([k, v]) => [k, v[0]])));
       } else {
         toast.error(err instanceof Error ? err.message : "Couldn't save the task.");
       }
@@ -80,7 +80,7 @@ export function TaskDetailDrawer({ task, onClose, onDelete, assignees }: {
         </>
       )}>
       {task && values && (
-        <form id="edit-task-form" onSubmit={save} noValidate style={{ display: 'contents' }}>
+        <form id="edit-task-form" onSubmit={(e) => void save(e)} noValidate style={{ display: 'contents' }}>
           <TaskFields values={values} errors={errors} onChange={setValues} assignees={assignees} largeTitle />
           <dl className={styles.facts}>
             <dt>Created</dt><dd><time dateTime={task.createdDate}>{dateTime(task.createdDate)}</time></dd>

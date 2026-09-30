@@ -1,7 +1,7 @@
 import { createContext, useContext, type ReactNode } from 'react';
 
 export interface ToastApi {
-  success(message: ReactNode): void;
+  success: (message: ReactNode) => void;
   error(message: ReactNode, action?: { label: string; run: () => void }): void;
 }
 

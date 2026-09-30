@@ -9,7 +9,7 @@ describe('api client', () => {
 
   it('refreshes once on 401 and retries with the new token', async () => {
     let token = 'expired';
-    const refresh = vi.fn(async () => { token = 'fresh'; return token; });
+    const refresh = vi.fn(() => { token = 'fresh'; return Promise.resolve(token); });
     const ended = vi.fn();
     configureAuth({ getToken: () => token, refresh, onSessionEnded: ended });
 
@@ -26,7 +26,7 @@ describe('api client', () => {
 
   it('ends the session when the refresh fails', async () => {
     const ended = vi.fn();
-    configureAuth({ getToken: () => 'expired', refresh: async () => null, onSessionEnded: ended });
+    configureAuth({ getToken: () => 'expired', refresh: () => Promise.resolve(null), onSessionEnded: ended });
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(json(401, { title: 'Unauthorized', errorCode: 'UNAUTHENTICATED' }));
 
     await expect(api('/tasks')).rejects.toMatchObject({ status: 401, errorCode: 'UNAUTHENTICATED' });
@@ -34,7 +34,7 @@ describe('api client', () => {
   });
 
   it('turns ProblemDetails into an ApiError with field errors', async () => {
-    configureAuth({ getToken: () => 't', refresh: async () => null, onSessionEnded: () => {} });
+    configureAuth({ getToken: () => 't', refresh: () => Promise.resolve(null), onSessionEnded: () => {} });
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(json(400, {
       title: 'Validation failed', detail: 'One or more fields are invalid.', errorCode: 'VALIDATION_FAILED',
       errors: { title: ['Title is required.'] },

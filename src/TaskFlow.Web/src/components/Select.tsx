@@ -15,7 +15,7 @@ export interface SelectOption<T extends string> {
 
 interface SelectProps<T extends string> {
   value: T;
-  onChange(value: T): void;
+  onChange: (value: T) => void;
   options: SelectOption<T>[];
   /** Accessible name, and the title of the mobile sheet. */
   label: string;
@@ -24,7 +24,7 @@ interface SelectProps<T extends string> {
   variant?: 'field' | 'filter';
   id?: string;
   /** Replaces the default trigger content. */
-  renderValue?(option: SelectOption<T>): ReactNode;
+  renderValue?: (option: SelectOption<T>) => ReactNode;
   triggerClassName?: string;
   /** Accessible name for the trigger, if different from label (e.g. "Status for task #6: To Do"). */
   triggerLabel?: string;
@@ -42,7 +42,7 @@ export function Select<T extends string>(props: SelectProps<T>) {
 }
 
 function TriggerContent<T extends string>({ option, prefix, variant, renderValue }: {
-  option: SelectOption<T>; prefix?: string; variant: 'field' | 'filter'; renderValue?(o: SelectOption<T>): ReactNode;
+  option: SelectOption<T>; prefix?: string; variant: 'field' | 'filter'; renderValue?: (o: SelectOption<T>) => ReactNode;
 }) {
   if (renderValue) return <>{renderValue(option)}</>;
   return (

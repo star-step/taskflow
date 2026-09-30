@@ -11,14 +11,24 @@ import styles from './tasks.module.css';
 interface Props {
   tasks: Task[];
   selectedId: number | null;
-  onOpen(task: Task): void;
-  onStatus(task: Task, status: TaskStatus): void;
-  onDelete(task: Task): void;
+  onOpen: (task: Task) => void;
+  onStatus: (task: Task, status: TaskStatus) => void;
+  onDelete: (task: Task) => void;
+}
+
+/**
+ * A row opens the task, except when the click came from a control inside it (the status dropdown,
+ * the actions menu, the title button). React bubbles portal events (menus, listboxes) through the
+ * row too, so those are recognised by role.
+ */
+function fromControl(target: EventTarget): boolean {
+  return target instanceof Element
+    && !!target.closest('button, a, input, select, textarea, [role="listbox"], [role="option"], [role="menu"], [role="menuitem"]');
 }
 
 const stripe = { Critical: 'var(--crit)', High: 'var(--high)', Medium: 'var(--med)', Low: 'var(--low)' } as const;
 
-function RowMenu({ task, onOpen, onDelete }: { task: Task; onOpen(t: Task): void; onDelete(t: Task): void }) {
+function RowMenu({ task, onOpen, onDelete }: { task: Task; onOpen: (t: Task) => void; onDelete: (t: Task) => void }) {
   return (
     <Menu
       trigger={<button type="button" className={ui.iconBtn} aria-label={`Actions for task #${task.id}`} onClick={(e) => e.stopPropagation()}><MoreIcon /></button>}
@@ -50,17 +60,17 @@ export function TaskList({ tasks, selectedId, onOpen, onStatus, onDelete }: Prop
           <tbody>
             {tasks.map((t) => (
               <tr key={t.id} className={`${t.priority === 'Critical' ? styles.isCrit : ''} ${t.id === selectedId ? styles.isSelected : ''}`}
-                onClick={() => onOpen(t)}>
+                onClick={(e) => { if (!fromControl(e.target)) onOpen(t); }}>
                 <td className={styles.colId}><span className={styles.id}>#{t.id}</span></td>
                 <td className={styles.titleCell}>
-                  <button type="button" className={styles.titleBtn} onClick={(e) => { e.stopPropagation(); onOpen(t); }}>{t.title}</button>
+                  <button type="button" className={styles.titleBtn} onClick={() => onOpen(t)}>{t.title}</button>
                   {t.description && <div className={styles.desc}>{t.description}</div>}
                 </td>
                 <td><StatusSelect taskId={t.id} value={t.status} onChange={(s) => onStatus(t, s)} /></td>
                 <td><PriorityBadge priority={t.priority} /></td>
                 <td><Assignee name={t.assignedTo} /></td>
                 <td className={styles.colMod}><time dateTime={t.modifiedDate} title={new Date(t.modifiedDate).toLocaleString()}>{relativeTime(t.modifiedDate)}</time></td>
-                <td className={styles.colAct} onClick={(e) => e.stopPropagation()}><RowMenu task={t} onOpen={onOpen} onDelete={onDelete} /></td>
+                <td className={styles.colAct}><RowMenu task={t} onOpen={onOpen} onDelete={onDelete} /></td>
               </tr>
             ))}
           </tbody>

@@ -18,10 +18,10 @@ export class ApiError extends Error {
 }
 
 interface AuthHooks {
-  getToken(): string | null;
+  getToken: () => string | null;
   /** Gets a new access token from the refresh cookie; resolves null when the session is over. */
-  refresh(): Promise<string | null>;
-  onSessionEnded(): void;
+  refresh: () => Promise<string | null>;
+  onSessionEnded: () => void;
 }
 
 let auth: AuthHooks | null = null;
@@ -69,10 +69,18 @@ export async function api<T>(path: string, options: RequestOptions = {}, isRetry
   return (await response.json()) as T;
 }
 
+/** The ProblemDetails fields the client uses; anything else in the body is ignored. */
+interface ProblemBody {
+  errorCode?: string;
+  detail?: string;
+  title?: string;
+  errors?: Record<string, string[]>;
+}
+
 async function toApiError(response: Response): Promise<ApiError> {
   const retryAfter = Number(response.headers.get('Retry-After')) || undefined;
   try {
-    const body = await response.json();
+    const body = (await response.json()) as ProblemBody;
     return new ApiError(
       response.status,
       body.errorCode,

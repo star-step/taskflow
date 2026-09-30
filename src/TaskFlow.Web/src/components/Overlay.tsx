@@ -11,10 +11,22 @@ import styles from './Overlay.module.css';
  */
 interface BaseProps {
   open: boolean;
-  onOpenChange(open: boolean): void;
+  onOpenChange: (open: boolean) => void;
   title: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
+}
+
+/**
+ * Dialogs move focus inside when they open (Radix default: the first focusable element, the close
+ * button). A field marked data-initial-focus gets it instead, e.g. the title of a new task.
+ */
+function focusMarkedField(event: Event) {
+  const field = (event.currentTarget as HTMLElement | null)?.querySelector<HTMLElement>('[data-initial-focus]');
+  if (field) {
+    event.preventDefault();
+    field.focus();
+  }
 }
 
 /** Centred dialog on desktop; full-screen sheet with pinned header and footer on phones. */
@@ -23,7 +35,7 @@ export function Modal({ open, onOpenChange, title, children, footer }: BaseProps
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className={styles.scrim} />
-        <Dialog.Content className={styles.modal} aria-describedby={undefined}>
+        <Dialog.Content className={styles.modal} aria-describedby={undefined} onOpenAutoFocus={focusMarkedField}>
           <header className={styles.head}>
             <Dialog.Title className={styles.title}>{title}</Dialog.Title>
             <Dialog.Close className={ui.iconBtn} aria-label="Close"><CloseIcon /></Dialog.Close>
@@ -79,8 +91,8 @@ export function Sheet({ open, onOpenChange, title, children, footer, headerActio
 
 /** Confirmation for destructive actions. Focus starts on Cancel so a stray Enter is harmless. */
 export function ConfirmDialog({ open, onOpenChange, title, children, confirmLabel, onConfirm, busy }: {
-  open: boolean; onOpenChange(open: boolean): void; title: string; children: ReactNode;
-  confirmLabel: string; onConfirm(): void; busy?: boolean;
+  open: boolean; onOpenChange: (open: boolean) => void; title: string; children: ReactNode;
+  confirmLabel: string; onConfirm: () => void; busy?: boolean;
 }) {
   const cancelRef = useRef<HTMLButtonElement>(null);
   return (

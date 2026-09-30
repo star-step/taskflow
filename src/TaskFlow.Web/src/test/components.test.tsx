@@ -14,9 +14,11 @@ import { RegisterPage } from '../pages/RegisterPage';
 type Handler = (init?: RequestInit) => Response | Promise<Response>;
 
 /** Routes fetch calls by "METHOD /api/path" to handlers; anything else is a 404 ProblemDetails. */
+const urlOf = (input: RequestInfo | URL) => (typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
+
 function mockApi(routes: Record<string, Handler>) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-    const url = new URL(String(input), 'http://localhost');
+    const url = new URL(urlOf(input), 'http://localhost');
     const key = `${init?.method ?? 'GET'} ${url.pathname}`;
     const handler = routes[key];
     return handler ? handler(init) : json(404, { title: 'Not found', errorCode: 'NOT_FOUND' });
@@ -210,6 +212,6 @@ describe('RegisterPage', () => {
     await user.type(screen.getByLabelText('Confirm password'), 'harbour-lantern');
     expect(screen.getByText("Passwords don't match.")).toBeInTheDocument();
 
-    expect(api.mock.calls.some(([url]) => String(url).includes('/auth/register'))).toBe(false);
+    expect(api.mock.calls.some(([url]) => urlOf(url).includes('/auth/register'))).toBe(false);
   });
 });

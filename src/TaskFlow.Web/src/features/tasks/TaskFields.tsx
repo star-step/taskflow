@@ -10,9 +10,9 @@ import styles from './tasks.module.css';
 
 const prioClass = { Critical: styles.pCrit, High: styles.pHigh, Medium: styles.pMed, Low: styles.pLow };
 
-export function TaskFields({ values, errors, onChange, assignees, largeTitle, autoFocus }: {
-  values: TaskFormValues; errors: TaskFormErrors; onChange(v: TaskFormValues): void; assignees: string[];
-  largeTitle?: boolean; autoFocus?: boolean;
+export function TaskFields({ values, errors, onChange, assignees, largeTitle, initialFocus }: {
+  values: TaskFormValues; errors: TaskFormErrors; onChange: (v: TaskFormValues) => void; assignees: string[];
+  largeTitle?: boolean; initialFocus?: boolean;
 }) {
   const id = useId();
   const set = <K extends keyof TaskFormValues>(key: K, value: TaskFormValues[K]) => onChange({ ...values, [key]: value });
@@ -28,7 +28,7 @@ export function TaskFields({ values, errors, onChange, assignees, largeTitle, au
         <label className={ui.label} htmlFor={`${id}-title`}>Title<span className={ui.req} aria-hidden>*</span></label>
         <input id={`${id}-title`} className={`${ui.input} ${largeTitle ? ui.large : ''} ${errors.title ? ui.invalid : ''}`}
           placeholder="What needs doing?" value={values.title} onChange={(e) => set('title', e.target.value)}
-          aria-invalid={!!errors.title} aria-describedby={describedBy('title')} aria-required autoFocus={autoFocus} />
+          aria-invalid={!!errors.title} aria-describedby={describedBy('title')} aria-required data-initial-focus={initialFocus || undefined} />
         {err('title')}
       </div>
 

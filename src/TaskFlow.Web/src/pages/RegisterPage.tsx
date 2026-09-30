@@ -68,7 +68,7 @@ export function RegisterPage() {
     setFormError(null);
     try {
       await register(values.displayName.trim(), values.email.trim(), values.password);
-      navigate(returnTo, { replace: true });
+      void navigate(returnTo, { replace: true });
     } catch (err) {
       if (err instanceof ApiError) {
         setEmailTaken(err.errorCode === 'EMAIL_TAKEN');
@@ -103,7 +103,7 @@ export function RegisterPage() {
   );
 
   return (
-    <AuthLayout onSubmit={submit}>
+    <AuthLayout onSubmit={(e) => void submit(e)}>
       <div>
         <h1 className={styles.heading}>Create your account</h1>
         <p className={styles.lead}>It takes a minute. You'll be signed in straight after.</p>
@@ -114,7 +114,7 @@ export function RegisterPage() {
         <label className={ui.label} htmlFor="displayName">Full name</label>
         <input id="displayName" autoComplete="name" className={input('displayName')} value={values.displayName}
           onChange={(e) => set('displayName', e.target.value)} aria-invalid={!!errors.displayName}
-          aria-describedby={describedBy('displayName')} maxLength={LIMITS.displayNameMax} autoFocus />
+          aria-describedby={describedBy('displayName')} maxLength={LIMITS.displayNameMax} />
         {error('displayName')}
       </div>
 

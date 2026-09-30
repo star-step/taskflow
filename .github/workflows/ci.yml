@@ -88,6 +88,8 @@ jobs:
         run: npm audit --audit-level=moderate
       - run: npm run typecheck
       - run: npm run lint
+      - name: No unused files, exports or dependencies
+        run: npm run knip
       - run: npm test
       - run: npm run build
 

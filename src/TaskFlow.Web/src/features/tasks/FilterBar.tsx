@@ -14,13 +14,13 @@ interface Props {
   activeCount: number;
   searchInputRef: RefObject<HTMLInputElement>;
   search: string;
-  onSearch(v: string): void;
-  onStatus(v: TaskStatus[]): void;
-  onPriority(v: TaskPriority[]): void;
-  onAssignee(v: string): void;
-  onSort(by: SortBy, dir: SortDir): void;
-  onClear(): void;
-  onOpenSheet(): void;
+  onSearch: (v: string) => void;
+  onStatus: (v: TaskStatus[]) => void;
+  onPriority: (v: TaskPriority[]) => void;
+  onAssignee: (v: string) => void;
+  onSort: (by: SortBy, dir: SortDir) => void;
+  onClear: () => void;
+  onOpenSheet: () => void;
 }
 
 export function FilterBar({ filters, assignees, activeCount, searchInputRef, search, onSearch, onStatus, onPriority, onAssignee, onSort, onClear, onOpenSheet }: Props) {

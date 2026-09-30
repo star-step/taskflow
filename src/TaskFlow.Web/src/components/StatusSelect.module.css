@@ -1,4 +1,3 @@
-.stop { display: inline-flex; }
 .pill.pill {
   height: 28px; padding: 0 8px 0 9px; border-radius: 999px; font-size: 13px; font-weight: 600; gap: 6px;
 }

@@ -8,7 +8,7 @@ import styles from './tasks.module.css';
 const PRIORITY_VAR = { Critical: 'var(--crit)', High: 'var(--high)', Medium: 'var(--med)', Low: 'var(--low)' } as const;
 
 /** Counts from GET /api/tasks/summary (the raw SQL endpoint). Status counts double as filters. */
-export function SummaryStrip({ activeStatus, onStatus }: { activeStatus: TaskStatus[]; onStatus(s: TaskStatus[]): void }) {
+export function SummaryStrip({ activeStatus, onStatus }: { activeStatus: TaskStatus[]; onStatus: (s: TaskStatus[]) => void }) {
   const { data, isPending, isError, refetch } = useSummary();
 
   if (isPending) {

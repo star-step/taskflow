@@ -8,7 +8,7 @@ import { TaskFields } from './TaskFields';
 import { emptyTask, toInput, validateTask, type TaskFormErrors, type TaskFormValues } from './taskForm';
 
 /** Create form. Errors show after the first submit and then update as the user types. */
-export function TaskFormDialog({ open, onOpenChange, assignees }: { open: boolean; onOpenChange(v: boolean): void; assignees: string[] }) {
+export function TaskFormDialog({ open, onOpenChange, assignees }: { open: boolean; onOpenChange: (v: boolean) => void; assignees: string[] }) {
   const create = useCreateTask();
   const toast = useToast();
   const [values, setValues] = useState<TaskFormValues>(emptyTask);
@@ -34,7 +34,7 @@ export function TaskFormDialog({ open, onOpenChange, assignees }: { open: boolea
       onOpenChange(false);
     } catch (err) {
       if (err instanceof ApiError && Object.keys(err.errors).length) {
-        setErrors(Object.fromEntries(Object.entries(err.errors).map(([k, v]) => [k, v[0]])) as TaskFormErrors);
+        setErrors(Object.fromEntries(Object.entries(err.errors).map(([k, v]) => [k, v[0]])));
       } else {
         toast.error(err instanceof Error ? err.message : "Couldn't create the task.");
       }
@@ -49,8 +49,8 @@ export function TaskFormDialog({ open, onOpenChange, assignees }: { open: boolea
           {create.isPending ? 'Creating…' : 'Create task'}
         </button>
       </>}>
-      <form id="new-task-form" onSubmit={submit} noValidate style={{ display: 'contents' }}>
-        <TaskFields values={values} errors={errors} onChange={change} assignees={assignees} autoFocus />
+      <form id="new-task-form" onSubmit={(e) => void submit(e)} noValidate style={{ display: 'contents' }}>
+        <TaskFields values={values} errors={errors} onChange={change} assignees={assignees} initialFocus />
       </form>
     </Modal>
   );

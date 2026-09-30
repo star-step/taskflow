@@ -2,10 +2,10 @@ import type { ReactNode } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import styles from './Menu.module.css';
 
-export interface MenuItem {
+interface MenuItem {
   label: string;
   icon?: ReactNode;
-  onSelect(): void;
+  onSelect: () => void;
   danger?: boolean;
 }
 

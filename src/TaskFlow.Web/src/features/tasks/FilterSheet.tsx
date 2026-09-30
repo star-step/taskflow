@@ -9,9 +9,9 @@ import styles from './tasks.module.css';
 
 /** Filters for tablet and phone. Changes apply immediately; the button shows how many tasks match. */
 export function FilterSheet({ open, onOpenChange, filters, assignees, resultCount, onStatus, onPriority, onAssignee, onSort, onClear }: {
-  open: boolean; onOpenChange(v: boolean): void; filters: TaskFilters; assignees: string[]; resultCount: number | undefined;
-  onStatus(v: TaskStatus[]): void; onPriority(v: TaskPriority[]): void; onAssignee(v: string): void;
-  onSort(by: SortBy, dir: SortDir): void; onClear(): void;
+  open: boolean; onOpenChange: (v: boolean) => void; filters: TaskFilters; assignees: string[]; resultCount: number | undefined;
+  onStatus: (v: TaskStatus[]) => void; onPriority: (v: TaskPriority[]) => void; onAssignee: (v: string) => void;
+  onSort: (by: SortBy, dir: SortDir) => void; onClear: () => void;
 }) {
   const sortValue = `${filters.sortBy}:${filters.sortDir}`;
   return (

@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // accept() schedules the next refresh, and refresh() calls accept(). The ref breaks that cycle
   // so both callbacks keep honest dependency lists.
-  const refreshRef = useRef<() => Promise<string | null>>(async () => null);
+  const refreshRef = useRef<() => Promise<string | null>>(() => Promise.resolve(null));
 
   const accept = useCallback((res: AuthResponse) => {
     tokenRef.current = res.accessToken;

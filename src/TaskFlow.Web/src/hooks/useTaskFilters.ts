@@ -21,7 +21,7 @@ export function useTaskFilters() {
       assignedTo: (params.get('assignee') ?? '').slice(0, LIMITS.assignedTo),
       search: (params.get('q') ?? '').slice(0, LIMITS.search),
       sortBy: sortBy && SORTS.includes(sortBy) ? sortBy : 'Priority',
-      sortDir: (params.get('dir') === 'Asc' ? 'Asc' : 'Desc') as SortDir,
+      sortDir: params.get('dir') === 'Asc' ? 'Asc' : 'Desc',
     };
   }, [params]);
 

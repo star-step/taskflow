@@ -21,5 +21,7 @@ paths:
   `aria-invalid` + `aria-describedby`.
 - Client validation mirrors the API rules (`validateTask`, `passwordChecks`, `LIMITS` in `api/types.ts`); keep them in
   sync with `TaskFieldLimits` and `AccountRules`.
-- Before committing: `npm run typecheck` (it includes the test files), `npm test` and `npm run build`. For layout
+- Props callbacks use property syntax (`onChange: (v: T) => void`), not method syntax (type-aware lint flags unbound methods).
+  No `autoFocus`: dialogs focus a field marked `data-initial-focus`. Rows ignore clicks from controls (`fromControl`).
+- Before committing: `npm run typecheck` (it includes the test files), `npm run lint`, `npm run knip`, `npm test` and `npm run build`. For layout
   changes, also check 375, 768 and 1024+ widths in the browser.

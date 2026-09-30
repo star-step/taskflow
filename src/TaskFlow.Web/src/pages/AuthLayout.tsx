@@ -12,7 +12,7 @@ export function Brand({ inverted }: { inverted?: boolean }) {
 }
 
 /** Split layout for sign-in and create-account: a brand panel on desktop, a centred card below that. */
-export function AuthLayout({ children, onSubmit }: { children: ReactNode; onSubmit(e: FormEvent<HTMLFormElement>): void }) {
+export function AuthLayout({ children, onSubmit }: { children: ReactNode; onSubmit: (e: FormEvent<HTMLFormElement>) => void }) {
   return (
     <div className={styles.page}>
       <aside className={styles.aside}>

@@ -9,7 +9,7 @@ import { Brand } from '../../pages/AuthLayout';
 import styles from './tasks.module.css';
 
 export function AppHeader({ search, onSearch, view, onView, onNewTask, onSearchFocus }: {
-  search: string; onSearch(v: string): void; view: View; onView(v: View): void; onNewTask(): void; onSearchFocus(): void;
+  search: string; onSearch: (v: string) => void; view: View; onView: (v: View) => void; onNewTask: () => void; onSearchFocus: () => void;
 }) {
   const { user, logout } = useAuth();
   return (
