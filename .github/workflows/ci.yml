@@ -45,9 +45,19 @@ jobs:
           --settings coverage.runsettings --collect "XPlat Code Coverage"
           --logger trx --results-directory TestResults
 
-      - name: Coverage summary
+      - name: Coverage summary and threshold (80% lines)
         if: always()
-        run: python3 .github/scripts/coverage_summary.py TestResults >> "$GITHUB_STEP_SUMMARY"
+        run: python3 .github/scripts/coverage_summary.py TestResults --min-line 80 >> "$GITHUB_STEP_SUMMARY"
+
+      - name: No model changes without a migration
+        run: |
+          dotnet tool restore
+          dotnet ef migrations has-pending-model-changes --project src/TaskFlow.Api --configuration Release --no-build
+
+      - name: No known-vulnerable NuGet packages
+        run: |
+          dotnet list package --vulnerable --include-transitive | tee vulnerable.txt
+          if grep -q "has the following vulnerable packages" vulnerable.txt; then exit 1; fi
 
       - name: Upload test results and coverage
         if: always()
@@ -74,6 +84,8 @@ jobs:
           cache-dependency-path: src/TaskFlow.Web/package-lock.json
 
       - run: npm ci
+      - name: No known-vulnerable npm packages
+        run: npm audit --audit-level=moderate
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test

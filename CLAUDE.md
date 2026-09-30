@@ -17,6 +17,8 @@ before changing behaviour); UI reference: `docs/mockups/index.html`. Path-scoped
 - Local dev: `docker compose up -d db`, `dotnet run --project src/TaskFlow.Api` (:5080, Swagger), `npm --prefix src/TaskFlow.Web run dev` (:5173)
 - New migration: `dotnet tool restore`, then `dotnet ef migrations add <Name> --project src/TaskFlow.Api --output-dir Data/Migrations`
 - Vulnerability checks: `dotnet list package --vulnerable --include-transitive` and `npm --prefix src/TaskFlow.Web audit`
+- CI gates (fail the build): ≥80% line coverage per test run, no model change without a migration
+  (`dotnet ef migrations has-pending-model-changes --project src/TaskFlow.Api`), no known-vulnerable NuGet/npm packages
 
 ## Architecture rules
 
