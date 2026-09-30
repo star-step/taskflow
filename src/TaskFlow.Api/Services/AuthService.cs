@@ -77,20 +77,20 @@ public sealed class AuthService : IAuthService
         {
             _dummyHash ??= _hasher.HashPassword(DummyUser, Guid.NewGuid().ToString());
             _hasher.VerifyHashedPassword(DummyUser, _dummyHash, request.Password);
-            throw new InvalidCredentialsException();
+            throw new InvalidCredentialsException(_options.Lockout.Minutes);
         }
 
         if (await _users.IsLockedOutAsync(user))
         {
             // Refused without counting another failure, but still pay for a hash check.
             _hasher.VerifyHashedPassword(user, user.PasswordHash ?? string.Empty, request.Password);
-            throw new InvalidCredentialsException();
+            throw new InvalidCredentialsException(_options.Lockout.Minutes);
         }
 
         if (!await _users.CheckPasswordAsync(user, request.Password))
         {
             await _users.AccessFailedAsync(user);
-            throw new InvalidCredentialsException();
+            throw new InvalidCredentialsException(_options.Lockout.Minutes);
         }
 
         await _users.ResetAccessFailedCountAsync(user);

@@ -99,6 +99,19 @@ public sealed class AuthServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task LoginAsync_FailureMessage_UsesConfiguredLockoutDuration()
+    {
+        await using var host = new TestHost(new() { ["Auth:Lockout:Minutes"] = "30" });
+        await using var scope = host.Scope();
+        var auth = scope.ServiceProvider.GetRequiredService<IAuthService>();
+
+        var ex = await Assert.ThrowsAsync<InvalidCredentialsException>(() =>
+            auth.LoginAsync(new LoginRequest { Email = "nobody@company.com", Password = Password }));
+
+        Assert.Contains("30 minutes", ex.Message);
+    }
+
+    [Fact]
     public async Task LoginAsync_FiveWrongPasswords_LocksAccount()
     {
         await Register();

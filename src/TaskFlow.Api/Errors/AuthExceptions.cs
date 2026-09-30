@@ -7,9 +7,9 @@ namespace TaskFlow.Api.Errors;
 /// </summary>
 public sealed class InvalidCredentialsException : AppException
 {
-    public InvalidCredentialsException()
+    public InvalidCredentialsException(int lockoutMinutes)
         : base(StatusCodes.Status401Unauthorized, ErrorCodes.InvalidCredentials, "Sign-in failed",
-            "Email or password is incorrect. After several failed attempts, sign-in is paused for 15 minutes.")
+            $"Email or password is incorrect. After several failed attempts, sign-in is paused for {lockoutMinutes} minutes.")
     {
     }
 }

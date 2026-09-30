@@ -22,16 +22,26 @@ public sealed partial class RequestLoggingMiddleware
     public async Task InvokeAsync(HttpContext context)
     {
         var start = Stopwatch.GetTimestamp();
+        var escaped = false;
         try
         {
             await _next(context);
+        }
+        catch (Exception ex)
+        {
+            // Normally GlobalExceptionHandler turns exceptions into ProblemDetails and logs them. One that
+            // gets this far (e.g. the response had already started) would otherwise go unlogged, because
+            // ExceptionHandlerMiddleware's own log category is filtered out in Program.cs.
+            escaped = true;
+            LogEscaped(_logger, ex, context.Request.Method, context.Request.Path.Value ?? "/", Activity.Current?.Id ?? context.TraceIdentifier);
+            throw;
         }
         finally
         {
             var elapsedMs = Math.Round(Stopwatch.GetElapsedTime(start).TotalMilliseconds, 1);
             var method = context.Request.Method;
             var path = context.Request.Path.HasValue ? context.Request.Path.Value! : "/";
-            var status = context.Response.StatusCode;
+            var status = escaped && !context.Response.HasStarted ? StatusCodes.Status500InternalServerError : context.Response.StatusCode;
             var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
 
             if (path.StartsWith("/health", StringComparison.OrdinalIgnoreCase))
@@ -56,6 +66,9 @@ public sealed partial class RequestLoggingMiddleware
 
     [LoggerMessage(EventId = 1001, Level = LogLevel.Warning, Message = Template)]
     private static partial void LogServerError(ILogger logger, string method, string path, int statusCode, double elapsedMs, string traceId);
+
+    [LoggerMessage(EventId = 1003, Level = LogLevel.Error, Message = "Unhandled exception escaped the pipeline for {Method} {Path} (traceId {TraceId})")]
+    private static partial void LogEscaped(ILogger logger, Exception exception, string method, string path, string traceId);
 
     [LoggerMessage(EventId = 1002, Level = LogLevel.Debug, Message = Template)]
     private static partial void LogHealthProbe(ILogger logger, string method, string path, int statusCode, double elapsedMs, string traceId);
